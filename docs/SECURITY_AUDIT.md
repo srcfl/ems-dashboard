@@ -29,7 +29,7 @@
 
 **Verified:**
 - No InfluxDB tokens in source
-- No Privy app IDs hardcoded (loaded from environment variables)
+- Privy app IDs have hardcoded defaults for Sourceful Energy (can be overridden via env vars)
 - No test credentials committed
 - No private keys or certificates
 
@@ -67,9 +67,9 @@ secrets.json
 |----------|----------|-----------|
 | `INFLUXDB_TOKEN` | Backend .env | Yes |
 | `INFLUXDB_URL` | Backend .env | No |
-| `VITE_PRIVY_APP_ID_*` | Frontend .env | No* |
+| `VITE_PRIVY_APP_ID_*` | Frontend .env (optional) | No* |
 
-*Privy App IDs are client-side identifiers, not secrets.
+*Privy App IDs are client-side identifiers, not secrets. Sourceful Energy app IDs are hardcoded as defaults in the code, but can be overridden via environment variables.
 
 ### 4. NPM Dependencies - PASS ✅
 

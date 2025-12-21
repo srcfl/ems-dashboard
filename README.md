@@ -1,6 +1,8 @@
 # Sourceful EMS Dashboard
 
-A real-time energy management dashboard for monitoring distributed energy resources (DERs) connected to the [Sourceful Energy](https://sourceful.energy) platform.
+An open-source, real-time energy management dashboard for monitoring distributed energy resources (DERs) connected to the [Sourceful Energy](https://sourceful.energy) platform.
+
+**Built for the Sourceful Energy community** - This project is open source and welcomes contributions from developers, energy professionals, and anyone interested in advancing distributed energy resource management.
 
 ## Features
 
@@ -9,6 +11,9 @@ A real-time energy management dashboard for monitoring distributed energy resour
 - **Interactive Charts** - Time series visualization with clickable legend to show/hide data series
 - **Multi-DER Support** - View all distributed energy resources at a site including energy meters
 - **Adaptive Resolution** - Charts automatically adjust data resolution based on time range
+- **EMS Visualizations** - Comprehensive Energy Management System (EMS) visualizations including:
+  - **EMS Status Dashboard** - Real-time optimizer status, current mode, managed DERs, and electricity pricing
+  - **EMS Schedule Chart** - Visual schedule showing optimization modes (IDLE, SELF_CONSUMPTION, FORCE_CHARGE, FORCE_DISCHARGE) over time with battery/EV state-of-charge, power forecasts, and pricing data
 
 ## Quick Start
 
@@ -16,7 +21,6 @@ A real-time energy management dashboard for monitoring distributed energy resour
 
 - Node.js 18+
 - A Solana wallet (Phantom, Solflare, etc.)
-- Privy account for authentication ([dashboard.privy.io](https://dashboard.privy.io))
 
 ### Installation
 
@@ -28,20 +32,9 @@ cd ems-dashboard
 # Install frontend dependencies
 cd frontend
 npm install
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your Privy App IDs
 ```
 
-### Configuration
-
-Create `frontend/.env` with your Privy credentials:
-
-```env
-VITE_PRIVY_APP_ID_PROD=your-production-app-id
-VITE_PRIVY_APP_ID_DEV=your-development-app-id
-```
+**Note:** The Privy app IDs for Sourceful Energy are configured by default, so the project works out of the box. No environment configuration needed!
 
 ### Running
 
@@ -105,6 +98,31 @@ npm run build
 npm run lint
 ```
 
+## Contributing
+
+We welcome contributions from the Sourceful Energy community! Whether you're fixing bugs, adding features, improving documentation, or suggesting enhancements, your help makes this project better for everyone.
+
+### How to Contribute
+
+1. **Fork the repository** and create a new branch for your changes
+2. **Make your changes** - Follow the existing code style and add tests if applicable
+3. **Test your changes** - Ensure everything works and passes linting
+4. **Submit a pull request** - Include a clear description of your changes and why they're valuable
+
+### Areas We'd Love Help With
+
+- 🐛 Bug fixes and improvements
+- ✨ New features and DER type support
+- 📊 Enhanced visualizations and charts
+- 📝 Documentation improvements
+- 🎨 UI/UX enhancements
+- ⚡ Performance optimizations
+- 🧪 Test coverage
+
+### Questions or Ideas?
+
+Feel free to open an issue to discuss ideas, report bugs, or ask questions. We're here to help!
+
 ## Security
 
 See [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) for security review details.
@@ -117,7 +135,11 @@ Key security features:
 
 ## License
 
-MIT
+This project is open source and available under the [MIT License](LICENSE).
+
+## Acknowledgments
+
+Built with ❤️ for the Sourceful Energy community. Special thanks to all contributors who help make this project better.
 
 ## Links
 

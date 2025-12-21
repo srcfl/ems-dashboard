@@ -34,11 +34,15 @@ function getStoredEnv(): EnvType {
   return 'production';
 }
 
+// Sourceful Energy Privy App IDs (hardcoded defaults)
+const SOURCEFUL_PRIVY_APP_ID_PROD = 'cmeh0sbu300bfju0b7gwxctnk';
+const SOURCEFUL_PRIVY_APP_ID_DEV = 'cmdpnpacq01jtl40iof3ptm4u';
+
 function getAppId(env: EnvType): string {
   if (env === 'development') {
-    return import.meta.env.VITE_PRIVY_APP_ID_DEV || '';
+    return import.meta.env.VITE_PRIVY_APP_ID_DEV || SOURCEFUL_PRIVY_APP_ID_DEV;
   }
-  return import.meta.env.VITE_PRIVY_APP_ID_PROD || '';
+  return import.meta.env.VITE_PRIVY_APP_ID_PROD || SOURCEFUL_PRIVY_APP_ID_PROD;
 }
 
 interface Props {
