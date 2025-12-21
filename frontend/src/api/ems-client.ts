@@ -220,13 +220,13 @@ export function getModeInfo(mode: EMSMode): { label: string; color: string; desc
       };
     case 'FORCE_CHARGE':
       return {
-        label: 'Force Charge',
+        label: 'Charge',
         color: 'blue',
         description: 'Charging battery from grid (low price)',
       };
     case 'FORCE_DISCHARGE':
       return {
-        label: 'Force Discharge',
+        label: 'Discharge',
         color: 'orange',
         description: 'Discharging battery to grid (high price)',
       };

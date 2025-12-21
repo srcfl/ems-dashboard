@@ -29,10 +29,11 @@ export function BatteryCard({ battery }: BatteryCardProps) {
   };
 
   const formatPower = (w: number) => {
-    if (Math.abs(w) >= 1000) {
-      return `${(w / 1000).toFixed(2)} kW`;
+    const absW = Math.abs(w);
+    if (absW >= 1000) {
+      return `${(absW / 1000).toFixed(2)} kW`;
     }
-    return `${Math.abs(w).toFixed(0)} W`;
+    return `${absW.toFixed(0)} W`;
   };
 
   return (

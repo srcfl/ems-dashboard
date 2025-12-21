@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   ComposedChart,
-  Bar,
+  Area,
   Line,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  Cell,
+  ReferenceArea,
 } from 'recharts';
 import type { EMSParsedSchedule, EMSMode } from '../api/ems-types';
 import { getModeInfo } from '../api/ems-client';
@@ -31,18 +31,17 @@ interface ChartDataPoint {
   loadForecast: number;
   productionForecast: number;
   isCurrent: boolean;
+  slotIndex: number;
 }
 
-const MODE_COLORS: Record<EMSMode, string> = {
-  IDLE: '#6b7280',           // gray-500
-  SELF_CONSUMPTION: '#22c55e', // green-500
-  FORCE_CHARGE: '#3b82f6',    // blue-500
-  FORCE_DISCHARGE: '#f97316', // orange-500
+const MODE_COLORS: Record<EMSMode, { bg: string; border: string }> = {
+  IDLE: { bg: 'rgba(107, 114, 128, 0.15)', border: '#6b7280' },
+  SELF_CONSUMPTION: { bg: 'rgba(34, 197, 94, 0.2)', border: '#22c55e' },
+  FORCE_CHARGE: { bg: 'rgba(59, 130, 246, 0.25)', border: '#3b82f6' },
+  FORCE_DISCHARGE: { bg: 'rgba(249, 115, 22, 0.25)', border: '#f97316' },
 };
 
 export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-
   const chartData = useMemo(() => {
     if (!schedule) return [];
 
@@ -79,20 +78,41 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
         batteryPower,
         evPower,
         loadForecast: slot.loadForecast,
-        productionForecast: slot.productionForecast,
+        productionForecast: Math.abs(slot.productionForecast), // Make positive for display
         isCurrent,
+        slotIndex: slot.slotIndex,
       };
     });
   }, [schedule]);
 
-  // Find current slot index for reference line
+  // Find current slot index and group consecutive modes for shading
   const currentSlotIndex = chartData.findIndex(d => d.isCurrent);
+
+  // Group consecutive slots by mode for background shading
+  const modeRegions = useMemo(() => {
+    if (chartData.length === 0) return [];
+
+    const regions: { startIndex: number; endIndex: number; mode: EMSMode }[] = [];
+    let currentRegion = { startIndex: 0, endIndex: 0, mode: chartData[0].mode };
+
+    for (let i = 1; i < chartData.length; i++) {
+      if (chartData[i].mode === currentRegion.mode) {
+        currentRegion.endIndex = i;
+      } else {
+        regions.push({ ...currentRegion });
+        currentRegion = { startIndex: i, endIndex: i, mode: chartData[i].mode };
+      }
+    }
+    regions.push(currentRegion);
+
+    return regions;
+  }, [chartData]);
 
   if (loading) {
     return (
       <div className="bg-gray-800 rounded-xl p-6 animate-pulse">
         <div className="h-6 bg-gray-700 rounded w-1/4 mb-4"></div>
-        <div className="h-64 bg-gray-700 rounded"></div>
+        <div className="h-80 bg-gray-700 rounded"></div>
       </div>
     );
   }
@@ -113,148 +133,202 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
     const modeInfo = getModeInfo(data.mode);
 
     return (
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-xl">
-        <p className="text-white font-medium mb-2">{data.timeLabel}</p>
-        <div className="space-y-1 text-sm">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-3 h-3 rounded"
-              style={{ backgroundColor: MODE_COLORS[data.mode] }}
-            />
-            <span className="text-gray-400">Mode:</span>
-            <span className="text-white">{modeInfo.label}</span>
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 shadow-xl min-w-[220px]">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-white font-bold text-lg">{data.timeLabel}</p>
+          {data.isCurrent && (
+            <span className="px-2 py-0.5 bg-purple-500/30 text-purple-300 text-xs rounded-full">NOW</span>
+          )}
+        </div>
+
+        {/* Mode */}
+        <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-700">
+          <div
+            className="w-3 h-3 rounded"
+            style={{ backgroundColor: MODE_COLORS[data.mode].border }}
+          />
+          <span className="text-white font-medium">{modeInfo.label}</span>
+        </div>
+
+        <div className="space-y-2 text-sm">
+          {/* Price */}
+          <div className="flex justify-between">
+            <span className="text-gray-400">Price</span>
+            <span className="text-amber-400 font-medium">{data.priceOre.toFixed(1)} öre/kWh</span>
           </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-400">Price:</span>
-            <span className="text-white">{data.priceOre.toFixed(1)} öre/kWh</span>
-          </div>
-          {data.batterySoc !== null && (
-            <div className="flex justify-between gap-4">
-              <span className="text-gray-400">Battery SoC:</span>
-              <span className="text-yellow-400">{data.batterySoc.toFixed(0)}%</span>
-            </div>
-          )}
-          {data.evSoc !== null && (
-            <div className="flex justify-between gap-4">
-              <span className="text-gray-400">EV SoC:</span>
-              <span className="text-cyan-400">{data.evSoc.toFixed(0)}%</span>
-            </div>
-          )}
-          {data.batteryPower !== null && data.batteryPower !== 0 && (
-            <div className="flex justify-between gap-4">
-              <span className="text-gray-400">Battery Power:</span>
-              <span className="text-white">{(data.batteryPower / 1000).toFixed(1)} kW</span>
-            </div>
-          )}
+
+          {/* Load Forecast */}
           {data.loadForecast > 0 && (
-            <div className="flex justify-between gap-4">
-              <span className="text-gray-400">Load:</span>
-              <span className="text-white">{data.loadForecast.toFixed(0)} W</span>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Expected Load</span>
+              <span className="text-red-400 font-medium">{(data.loadForecast / 1000).toFixed(2)} kW</span>
             </div>
           )}
+
+          {/* Production Forecast */}
+          {data.productionForecast > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-400">Expected Solar</span>
+              <span className="text-yellow-400 font-medium">{(data.productionForecast / 1000).toFixed(2)} kW</span>
+            </div>
+          )}
+
+          {/* Battery SoC */}
+          {data.batterySoc !== null && (
+            <div className="flex justify-between">
+              <span className="text-gray-400">Battery SoC</span>
+              <span className="text-orange-400 font-bold">{data.batterySoc.toFixed(0)}%</span>
+            </div>
+          )}
+
+          {/* EV SoC */}
+          {data.evSoc !== null && (
+            <div className="flex justify-between">
+              <span className="text-gray-400">EV SoC</span>
+              <span className="text-cyan-400 font-bold">{data.evSoc.toFixed(0)}%</span>
+            </div>
+          )}
+
+          {/* Battery Power */}
+          {data.batteryPower !== null && data.batteryPower !== 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-400">Battery Power</span>
+              <span className={`font-medium ${data.batteryPower > 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                {data.batteryPower > 0 ? '+' : ''}{(data.batteryPower / 1000).toFixed(2)} kW
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Explanation */}
+        <div className="mt-3 pt-3 border-t border-gray-700">
+          <p className="text-gray-500 text-xs italic">{modeInfo.description}</p>
         </div>
       </div>
     );
   };
 
-  // Calculate Y-axis domain for price
-  const minPrice = Math.min(...chartData.map(d => d.priceOre));
+  // Calculate Y-axis domains
   const maxPrice = Math.max(...chartData.map(d => d.priceOre));
-  const pricePadding = (maxPrice - minPrice) * 0.1;
+  const minPrice = Math.min(...chartData.map(d => d.priceOre));
+  const pricePadding = (maxPrice - minPrice) * 0.15;
+
+  // Current time label
+  const currentTimeLabel = currentSlotIndex >= 0 ? chartData[currentSlotIndex].timeLabel : null;
 
   return (
     <div className="bg-gray-800 rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white font-medium">24h Optimization Schedule</h3>
+        <div>
+          <h3 className="text-white font-medium">24h Optimization Schedule</h3>
+          <p className="text-gray-500 text-xs mt-1">Shows how the optimizer plans to manage your energy</p>
+        </div>
         <div className="flex items-center gap-4 text-xs">
-          {Object.entries(MODE_COLORS).map(([mode, color]) => (
-            <div key={mode} className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: color }} />
+          {Object.entries(MODE_COLORS).map(([mode, colors]) => (
+            <div key={mode} className="flex items-center gap-1.5">
+              <div
+                className="w-3 h-3 rounded"
+                style={{ backgroundColor: colors.border }}
+              />
               <span className="text-gray-400">{getModeInfo(mode as EMSMode).label}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="h-64">
+      <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={chartData}
-            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-            onMouseMove={(e) => {
-              if (e.activeTooltipIndex !== undefined && typeof e.activeTooltipIndex === 'number') {
-                setHoveredIndex(e.activeTooltipIndex);
-              }
-            }}
-            onMouseLeave={() => setHoveredIndex(null)}
+            margin={{ top: 20, right: 60, left: 10, bottom: 10 }}
           >
+            {/* Mode background shading */}
+            {modeRegions.map((region, idx) => (
+              <ReferenceArea
+                key={idx}
+                x1={chartData[region.startIndex].timeLabel}
+                x2={chartData[Math.min(region.endIndex + 1, chartData.length - 1)].timeLabel}
+                fill={MODE_COLORS[region.mode].bg}
+                fillOpacity={1}
+                yAxisId="price"
+              />
+            ))}
+
             <XAxis
               dataKey="timeLabel"
-              stroke="#6b7280"
-              tick={{ fill: '#9ca3af', fontSize: 10 }}
+              stroke="#4b5563"
+              tick={{ fill: '#9ca3af', fontSize: 11 }}
               tickLine={false}
-              interval={11}  // Show every 3 hours (12 x 15min = 3h)
+              axisLine={{ stroke: '#374151' }}
+              interval={11}
             />
             <YAxis
               yAxisId="price"
               orientation="left"
-              stroke="#6b7280"
-              tick={{ fill: '#9ca3af', fontSize: 10 }}
+              stroke="#4b5563"
+              tick={{ fill: '#9ca3af', fontSize: 11 }}
               tickLine={false}
+              axisLine={{ stroke: '#374151' }}
               domain={[minPrice - pricePadding, maxPrice + pricePadding]}
               tickFormatter={(v) => `${v.toFixed(0)}`}
               label={{
                 value: 'öre/kWh',
                 angle: -90,
                 position: 'insideLeft',
-                fill: '#9ca3af',
-                fontSize: 10,
+                fill: '#6b7280',
+                fontSize: 11,
+                offset: 0,
               }}
             />
             <YAxis
               yAxisId="soc"
               orientation="right"
-              stroke="#6b7280"
-              tick={{ fill: '#9ca3af', fontSize: 10 }}
+              stroke="#4b5563"
+              tick={{ fill: '#9ca3af', fontSize: 11 }}
               tickLine={false}
+              axisLine={{ stroke: '#374151' }}
               domain={[0, 100]}
               tickFormatter={(v) => `${v}%`}
               label={{
-                value: 'SoC',
+                value: 'SoC %',
                 angle: 90,
                 position: 'insideRight',
-                fill: '#9ca3af',
-                fontSize: 10,
+                fill: '#6b7280',
+                fontSize: 11,
+                offset: 0,
               }}
             />
             <Tooltip content={<CustomTooltip />} />
 
-            {/* Current time reference line */}
-            {currentSlotIndex >= 0 && (
-              <ReferenceLine
-                x={chartData[currentSlotIndex].timeLabel}
-                stroke="#a855f7"
-                strokeWidth={2}
-                strokeDasharray="4 4"
-                yAxisId="price"
-              />
+            {/* Current time indicator - prominent vertical band */}
+            {currentTimeLabel && (
+              <>
+                <ReferenceLine
+                  x={currentTimeLabel}
+                  stroke="#a855f7"
+                  strokeWidth={3}
+                  yAxisId="price"
+                />
+                <ReferenceLine
+                  x={currentTimeLabel}
+                  stroke="#a855f7"
+                  strokeWidth={12}
+                  strokeOpacity={0.2}
+                  yAxisId="price"
+                />
+              </>
             )}
 
-            {/* Mode bars (background) */}
-            <Bar
+            {/* Load forecast area (subtle) */}
+            <Area
               yAxisId="price"
-              dataKey="priceOre"
-              barSize={8}
-              radius={[2, 2, 0, 0]}
-            >
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={index}
-                  fill={MODE_COLORS[entry.mode]}
-                  opacity={hoveredIndex === index ? 1 : 0.7}
-                />
-              ))}
-            </Bar>
+              type="monotone"
+              dataKey={(d: ChartDataPoint) => d.loadForecast > 0 ? (d.loadForecast / 1000) * 5 + minPrice : null}
+              stroke="none"
+              fill="#ef4444"
+              fillOpacity={0.1}
+              connectNulls
+            />
 
             {/* Price line */}
             <Line
@@ -267,25 +341,25 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
               name="Price"
             />
 
-            {/* Battery SoC line */}
+            {/* Battery SoC - BOLD */}
             <Line
               yAxisId="soc"
               type="monotone"
               dataKey="batterySoc"
-              stroke="#eab308"
-              strokeWidth={2}
+              stroke="#f97316"
+              strokeWidth={3}
               dot={false}
               name="Battery SoC"
               connectNulls
             />
 
-            {/* EV SoC line */}
+            {/* EV SoC - BOLD */}
             <Line
               yAxisId="soc"
               type="monotone"
               dataKey="evSoc"
               stroke="#06b6d4"
-              strokeWidth={2}
+              strokeWidth={3}
               dot={false}
               name="EV SoC"
               connectNulls
@@ -295,21 +369,21 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-6 mt-4 text-xs">
+      <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-gray-700 text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-yellow-500" />
-          <span className="text-gray-400">Price</span>
+          <div className="w-5 h-0.5 bg-amber-500" />
+          <span className="text-gray-400">Electricity Price</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-yellow-400" />
+          <div className="w-5 h-1 bg-orange-500 rounded" />
           <span className="text-gray-400">Battery SoC</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-0.5 bg-cyan-400" />
+          <div className="w-5 h-1 bg-cyan-500 rounded" />
           <span className="text-gray-400">EV SoC</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-purple-500 rounded-full" />
+          <div className="w-3 h-3 bg-purple-500 rounded-full" />
           <span className="text-gray-400">Current Time</span>
         </div>
       </div>
