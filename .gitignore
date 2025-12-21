@@ -65,3 +65,4 @@ credentials.json
 secrets.json
 
 example
+uv.lock

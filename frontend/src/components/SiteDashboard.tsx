@@ -9,6 +9,7 @@ import { MeterCard } from './MeterCard';
 import { EVChargerCard } from './EVChargerCard';
 import { LoadCard } from './LoadCard';
 import { PowerChart } from './PowerChart';
+import { EMSPanel } from './EMSPanel';
 
 // Local storage for site names (shared with UserSites)
 function getSiteName(siteId: string): string | null {
@@ -252,6 +253,9 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
 
       {/* Power Chart */}
       <PowerChart siteId={siteId} timeRange={timeRange} />
+
+      {/* EMS Panel */}
+      <EMSPanel siteId={siteId} />
 
       {/* DER Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -11,6 +11,11 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      '/ems': {
+        target: 'https://mainnet.srcful.dev',
+        changeOrigin: true,
+        secure: true,
+      },
     },
   },
   // Strip console.log and debugger statements in production builds
