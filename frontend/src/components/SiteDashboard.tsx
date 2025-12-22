@@ -28,7 +28,7 @@ interface SiteDashboardProps {
 }
 
 export function SiteDashboard({ siteId }: SiteDashboardProps) {
-  const { dataSource, credentials } = useDataContext();
+  const { credentials } = useDataContext();
   const [site, setSite] = useState<SiteOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,13 +58,13 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
   };
 
   const fetchSite = useCallback(async () => {
-    // Wait for credentials when using API mode
-    if (dataSource === 'api' && !credentials) {
+    // Wait for credentials
+    if (!credentials) {
       return;
     }
 
     try {
-      const data = await getSite(siteId, { dataSource, credentials });
+      const data = await getSite(siteId, credentials);
       setSite(data);
       setLastUpdate(new Date());
       setError(null);
@@ -73,7 +73,7 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
     } finally {
       setLoading(false);
     }
-  }, [siteId, dataSource, credentials]);
+  }, [siteId, credentials]);
 
   useEffect(() => {
     setLoading(true);

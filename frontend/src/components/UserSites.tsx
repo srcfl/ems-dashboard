@@ -25,7 +25,7 @@ interface UserSitesProps {
 export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
   const { authenticated } = usePrivy();
   const { wallets } = useWallets();
-  const { dataSource, credentials, isReady, isGeneratingCredentials, credentialError, generateCredentials, needsCredentials } = useDataContext();
+  const { credentials, isReady, isGeneratingCredentials, credentialError, generateCredentials, needsCredentials } = useDataContext();
   const [sites, setSites] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,11 +40,10 @@ export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
       walletsCount: wallets?.length || 0,
       walletAddresses: wallets?.map(w => w.address),
       walletAddress,
-      dataSource,
       hasCredentials: !!credentials,
       isReady,
     });
-  }, [authenticated, wallets, walletAddress, dataSource, credentials, isReady]);
+  }, [authenticated, wallets, walletAddress, credentials, isReady]);
 
   useEffect(() => {
     if (!authenticated || !walletAddress) {
@@ -52,18 +51,18 @@ export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
       return;
     }
 
-    // Wait for credentials when using API mode
-    if (dataSource === 'api' && !credentials) {
+    // Wait for credentials
+    if (!credentials) {
       console.log('⏳ Waiting for API credentials...');
       return;
     }
 
-    console.log('📡 Fetching sites for wallet:', walletAddress, 'via', dataSource);
+    console.log('📡 Fetching sites for wallet:', walletAddress);
 
     setLoading(true);
     setError(null);
 
-    getSitesForWallet(walletAddress, { dataSource, credentials })
+    getSitesForWallet(credentials)
       .then((siteList) => {
         setSites(siteList);
         setLoading(false);
@@ -72,14 +71,14 @@ export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
         setError(err.message);
         setLoading(false);
       });
-  }, [authenticated, walletAddress, dataSource, credentials]);
+  }, [authenticated, walletAddress, credentials]);
 
   if (!authenticated) {
     return null;
   }
 
-  // Show credential generation state for API mode
-  if (dataSource === 'api' && (isGeneratingCredentials || needsCredentials)) {
+  // Show credential generation state
+  if (isGeneratingCredentials || needsCredentials) {
     return (
       <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
         <div className="flex items-center gap-2 text-yellow-400 mb-2">

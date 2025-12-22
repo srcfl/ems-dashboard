@@ -36,6 +36,8 @@ npm install
 
 **Note:** The Privy app IDs for Sourceful Energy are configured by default, so the project works out of the box. No environment configuration needed!
 
+**Important:** This dashboard is currently configured to work **only on `localhost:3000`** due to Privy's domain restrictions. This is intentional - we provide this as a **blueprint and reference implementation** for developers. We're working on a better solution for bringing your own wallet authentication, but for now, this serves as a complete example of how to integrate with the Sourceful API.
+
 ### Running
 
 ```bash
@@ -57,7 +59,6 @@ ems-dashboard/
 │   │   ├── contexts/  # React contexts
 │   │   └── hooks/     # Custom hooks
 │   └── ...
-├── backend/           # Optional FastAPI backend (for InfluxDB)
 └── docs/              # Documentation
 ```
 
@@ -68,13 +69,6 @@ The dashboard connects directly to the Sourceful GraphQL API (`api-vnext.srcful.
 For detailed API documentation, see:
 - [API Blueprint](docs/SOURCEFUL_API_BLUEPRINT.md) - Developer guide for building on Sourceful
 - [API Documentation Gaps](docs/API_DOCUMENTATION_GAPS.md) - Known documentation issues
-
-## Data Sources
-
-The dashboard supports two data sources (configurable in settings):
-
-1. **Sourceful API** (default) - Direct connection to Sourceful's GraphQL API
-2. **InfluxDB** - Optional backend with InfluxDB for custom data storage
 
 ## DER Types Supported
 

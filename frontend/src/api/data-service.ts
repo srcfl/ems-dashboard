@@ -1,30 +1,14 @@
 import type { SiteOverview, TimeSeriesResponse } from './types';
 import type { AuthCredentials } from './sourceful-auth';
-import * as influxClient from './client';
 import * as sourcefulClient from './sourceful-client';
-
-export type DataSource = 'influxdb' | 'api';
-
-interface DataServiceOptions {
-  dataSource: DataSource;
-  credentials?: AuthCredentials | null;
-}
 
 /**
  * Get sites for a wallet address
  */
 export async function getSitesForWallet(
-  walletAddress: string,
-  options: DataServiceOptions
+  credentials: AuthCredentials
 ): Promise<string[]> {
-  if (options.dataSource === 'api' && options.credentials) {
-    return sourcefulClient.getSitesFromAPI(options.credentials);
-  }
-
-  // Fallback to InfluxDB
-  const response = await fetch(`/api/wallet/${walletAddress}/sites`);
-  const data = await response.json();
-  return data.sites || [];
+  return sourcefulClient.getSitesFromAPI(credentials);
 }
 
 /**
@@ -32,14 +16,9 @@ export async function getSitesForWallet(
  */
 export async function getSite(
   siteId: string,
-  options: DataServiceOptions
+  credentials: AuthCredentials
 ): Promise<SiteOverview> {
-  if (options.dataSource === 'api' && options.credentials) {
-    return sourcefulClient.getSiteFromAPI(siteId, options.credentials);
-  }
-
-  // Fallback to InfluxDB
-  return influxClient.getSite(siteId);
+  return sourcefulClient.getSiteFromAPI(siteId, credentials);
 }
 
 /**
@@ -47,13 +26,8 @@ export async function getSite(
  */
 export async function getTimeSeries(
   siteId: string,
-  options: DataServiceOptions,
+  credentials: AuthCredentials,
   params: { start?: string; aggregate?: string } = {}
 ): Promise<TimeSeriesResponse> {
-  if (options.dataSource === 'api' && options.credentials) {
-    return sourcefulClient.getTimeSeriesFromAPI(siteId, options.credentials, params);
-  }
-
-  // Fallback to InfluxDB
-  return influxClient.getTimeSeries(siteId, params);
+  return sourcefulClient.getTimeSeriesFromAPI(siteId, credentials, params);
 }

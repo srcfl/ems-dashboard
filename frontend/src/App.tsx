@@ -1,19 +1,13 @@
 import { useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
-import { Zap, Loader2, Settings } from 'lucide-react';
+import { Zap, Loader2 } from 'lucide-react';
 import { SiteDashboard } from './components/SiteDashboard';
 import { AuthButton } from './components/AuthButton';
 import { UserSites } from './components/UserSites';
-import { SettingsModal } from './components/SettingsModal';
-import { useSettings } from './contexts/SettingsContext';
-import { usePrivyEnv } from './auth/PrivyProvider';
 
 function App() {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
   const { ready, authenticated, login } = usePrivy();
-  const { settings } = useSettings();
-  const { env } = usePrivyEnv();
 
   // Show loading state while Privy initializes
   if (!ready) {
@@ -67,19 +61,8 @@ function App() {
         <footer className="bg-gray-800 border-t border-gray-700">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between text-gray-500 text-sm">
             <span>Sourceful Energy Management System</span>
-            <div className="flex items-center gap-2">
-              <StatusBadges dataSource={settings.dataSource} env={env} />
-              <button
-                onClick={() => setShowSettings(true)}
-                className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-gray-700"
-                title="Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            </div>
           </div>
         </footer>
-        <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
       </div>
     );
   }
@@ -132,45 +115,8 @@ function App() {
       <footer className="bg-gray-800 border-t border-gray-700 mt-auto">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between text-gray-500 text-sm">
           <span>Sourceful Energy Management System</span>
-          <div className="flex items-center gap-2">
-            <StatusBadges dataSource={settings.dataSource} env={env} />
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-gray-700"
-              title="Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-          </div>
         </div>
       </footer>
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
-    </div>
-  );
-}
-
-// Status badges component
-function StatusBadges({ dataSource, env }: { dataSource: string; env: string }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span
-        className={`px-2 py-0.5 text-xs font-medium rounded ${
-          dataSource === 'api'
-            ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700/50'
-            : 'bg-purple-900/50 text-purple-300 border border-purple-700/50'
-        }`}
-      >
-        {dataSource === 'api' ? 'API' : 'InfluxDB'}
-      </span>
-      <span
-        className={`px-2 py-0.5 text-xs font-medium rounded ${
-          env === 'production'
-            ? 'bg-gray-700/50 text-gray-300 border border-gray-600/50'
-            : 'bg-purple-900/50 text-purple-300 border border-purple-700/50'
-        }`}
-      >
-        {env === 'production' ? 'PROD' : 'DEV'}
-      </span>
     </div>
   );
 }

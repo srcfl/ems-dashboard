@@ -1,10 +1,8 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
-import { useSettings, type DataSource } from './SettingsContext';
 import { useSourcefulAuth } from '../hooks/useSourcefulAuth';
 import type { AuthCredentials } from '../api/sourceful-auth';
 
 interface DataContextType {
-  dataSource: DataSource;
   credentials: AuthCredentials | null;
   isReady: boolean;
   isGeneratingCredentials: boolean;
@@ -29,7 +27,6 @@ interface DataProviderProps {
 }
 
 export function DataProvider({ children }: DataProviderProps) {
-  const { settings } = useSettings();
   const {
     credentials,
     isGenerating,
@@ -40,20 +37,19 @@ export function DataProvider({ children }: DataProviderProps) {
     clearAuth,
   } = useSourcefulAuth();
 
-  // Log when API mode is selected but credentials are needed
+  // Log when credentials are needed
   useEffect(() => {
-    if (settings.dataSource === 'api' && ready && !hasCredentials && !isGenerating) {
-      console.log('🔐 API mode selected, credentials needed. User must click to sign.');
+    if (ready && !hasCredentials && !isGenerating) {
+      console.log('🔐 Credentials needed. User must click to sign.');
     }
-  }, [settings.dataSource, ready, hasCredentials, isGenerating]);
+  }, [ready, hasCredentials, isGenerating]);
 
-  const needsCredentials = settings.dataSource === 'api' && !hasCredentials && !isGenerating;
-  const isReady = settings.dataSource === 'influxdb' || (settings.dataSource === 'api' && hasCredentials);
+  const needsCredentials = !hasCredentials && !isGenerating;
+  const isReady = hasCredentials;
 
   return (
     <DataContext.Provider
       value={{
-        dataSource: settings.dataSource,
         credentials,
         isReady,
         isGeneratingCredentials: isGenerating,

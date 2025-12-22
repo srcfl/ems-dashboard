@@ -84,7 +84,7 @@ function CustomLegend({ payload, hiddenSeries, onToggle }: CustomLegendProps) {
 }
 
 export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
-  const { dataSource, credentials } = useDataContext();
+  const { credentials } = useDataContext();
   const [data, setData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -126,8 +126,8 @@ export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
   };
 
   useEffect(() => {
-    // Wait for credentials when using API mode
-    if (dataSource === 'api' && !credentials) {
+    // Wait for credentials
+    if (!credentials) {
       return;
     }
 
@@ -136,7 +136,7 @@ export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
 
     const resolution = getResolutionForRange(timeRange);
 
-    getTimeSeries(siteId, { dataSource, credentials }, { start: timeRange, aggregate: resolution })
+    getTimeSeries(siteId, credentials, { start: timeRange, aggregate: resolution })
       .then((response) => {
         // Group by timestamp and DER type
         const grouped: Record<string, ChartDataPoint> = {};
@@ -197,7 +197,7 @@ export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
         setError(err.message);
         setLoading(false);
       });
-  }, [siteId, timeRange, dataSource, credentials]);
+  }, [siteId, timeRange, credentials]);
 
   if (loading) {
     return (
