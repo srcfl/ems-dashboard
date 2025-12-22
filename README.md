@@ -1,8 +1,32 @@
 # Sourceful EMS Dashboard
 
+```
+'Twas the night before Christmas, when all through the grid,
+Not a circuit was stirring, each battery lid hid.
+The solar panels gleamed in the moonlight with care,
+In hopes that St. Nicholas soon would be there.
+
+The meters were monitoring load with precision,
+While data flowed smoothly with perfect transmission.
+When out on the network there arose such a sight,
+A dashboard so brilliant, it lit up the night!
+
+With real-time data from Solana's blockchain,
+And Privy authentication, so easy to main-tain.
+The EMS optimizer works through the day,
+Ensuring your energy never goes to waste, hooray!
+
+So here is our gift, wrapped in Docker with care,
+A blueprint for builders who wish to share.
+May your batteries be charged and your solar shine bright,
+Merry Christmas to all, and to all a good night! 🎄⚡
+```
+
+---
+
 An open-source, real-time energy management dashboard for monitoring distributed energy resources (DERs) connected to the [Sourceful Energy](https://sourceful.energy) platform.
 
-**Built for the Sourceful Energy community** - This project is open source and welcomes contributions from developers, energy professionals, and anyone interested in advancing distributed energy resource management.
+**Christmas 2025 Gift** - This project is open source and serves as a blueprint for developers building on the Sourceful Energy platform. We welcome contributions from developers, energy professionals, and anyone interested in advancing distributed energy resource management.
 
 ## Features
 
@@ -39,6 +63,25 @@ npm install
 **Important:** This dashboard is currently configured to work **only on `localhost:3000`** due to Privy's domain restrictions. This is intentional - we provide this as a **blueprint and reference implementation** for developers. We're working on a better solution for bringing your own wallet authentication, but for now, this serves as a complete example of how to integrate with the Sourceful API.
 
 ### Running
+
+#### Option 1: Docker (Recommended)
+
+The easiest way to run the dashboard:
+
+```bash
+# Build and start
+docker-compose up
+
+# Or run in background
+docker-compose up -d
+
+# Stop
+docker-compose down
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+#### Option 2: Node.js Development Server
 
 ```bash
 cd frontend

@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  dashboard:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    container_name: ems-dashboard
+    restart: unless-stopped
