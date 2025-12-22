@@ -1,13 +1,24 @@
 import { useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
-import { Zap, Loader2 } from 'lucide-react';
+import { Zap, Loader2, Terminal, Building2 } from 'lucide-react';
 import { SiteDashboard } from './components/SiteDashboard';
 import { AuthButton } from './components/AuthButton';
 import { UserSites } from './components/UserSites';
+import { usePrivyEnv } from './auth/PrivyProvider';
 
 function App() {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
-  const { ready, authenticated, login } = usePrivy();
+  const { ready, authenticated, login, logout } = usePrivy();
+  const { env, switchEnv } = usePrivyEnv();
+
+  const handleEnvSwitch = async () => {
+    const newEnv = env === 'production' ? 'development' : 'production';
+    // Logout first if authenticated
+    if (authenticated) {
+      await logout();
+    }
+    switchEnv(newEnv);
+  };
 
   // Show loading state while Privy initializes
   if (!ready) {
@@ -61,6 +72,27 @@ function App() {
         <footer className="bg-gray-800 border-t border-gray-700">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between text-gray-500 text-sm">
             <span>Sourceful Energy Management System</span>
+            <button
+              onClick={handleEnvSwitch}
+              className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                env === 'development'
+                  ? 'bg-purple-900/50 text-purple-300 hover:bg-purple-900/70 border border-purple-700/50'
+                  : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 border border-gray-600/50'
+              }`}
+              title={`Switch to ${env === 'development' ? 'production' : 'development'} environment`}
+            >
+              {env === 'development' ? (
+                <>
+                  <Terminal className="w-3 h-3" />
+                  DEV
+                </>
+              ) : (
+                <>
+                  <Building2 className="w-3 h-3" />
+                  PROD
+                </>
+              )}
+            </button>
           </div>
         </footer>
       </div>
@@ -115,6 +147,27 @@ function App() {
       <footer className="bg-gray-800 border-t border-gray-700 mt-auto">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between text-gray-500 text-sm">
           <span>Sourceful Energy Management System</span>
+          <button
+            onClick={handleEnvSwitch}
+            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors ${
+              env === 'development'
+                ? 'bg-purple-900/50 text-purple-300 hover:bg-purple-900/70 border border-purple-700/50'
+                : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 border border-gray-600/50'
+            }`}
+            title={`Switch to ${env === 'development' ? 'production' : 'development'} environment`}
+          >
+            {env === 'development' ? (
+              <>
+                <Terminal className="w-3 h-3" />
+                DEV
+              </>
+            ) : (
+              <>
+                <Building2 className="w-3 h-3" />
+                PROD
+              </>
+            )}
+          </button>
         </div>
       </footer>
     </div>
