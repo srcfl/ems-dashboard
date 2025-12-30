@@ -42,11 +42,7 @@ function App() {
         <header className="bg-gray-800 border-b border-gray-700">
           <div className="max-w-7xl mx-auto px-4 py-4">
             <div className="flex items-center gap-3">
-              <Zap className="w-8 h-8 text-yellow-400" />
-              <div>
-                <h1 className="text-xl font-bold text-white">EMS Dashboard</h1>
-                <p className="text-gray-500 text-sm">Sourceful Energy</p>
-              </div>
+              <img src="/sourceful-logo.png" alt="Sourceful" className="h-8" />
             </div>
           </div>
         </header>
@@ -54,9 +50,9 @@ function App() {
         {/* Login Content */}
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md px-4">
-            <Zap className="w-20 h-20 text-yellow-400 mx-auto mb-6" />
+            <img src="/sourceful-roundel.png" alt="Sourceful" className="w-20 h-20 mx-auto mb-6" />
             <h2 className="text-3xl font-bold text-white mb-4">
-              Welcome to EMS Dashboard
+              EMS Dashboard
             </h2>
             <p className="text-gray-400 mb-8">
               Sign in to view and manage your energy sites.
@@ -109,13 +105,7 @@ function App() {
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Zap className="w-8 h-8 text-yellow-400" />
-              <div>
-                <h1 className="text-xl font-bold">EMS Dashboard</h1>
-                <p className="text-gray-500 text-sm">Sourceful Energy</p>
-              </div>
-            </div>
+            <img src="/sourceful-logo.png" alt="Sourceful" className="h-8" />
             <AuthButton />
           </div>
         </div>
