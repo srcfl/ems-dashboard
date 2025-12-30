@@ -112,11 +112,11 @@ export function EMSStatusCard({ status, ders, currentSlot, loading }: EMSStatusC
                 {der.type === 'battery' ? 'Battery' : der.type === 'v2x' ? 'EV (V2X)' : der.type}
               </p>
               <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-white">{der.soc_percent.toFixed(0)}%</span>
+                <span className="text-lg font-bold text-white">{(der.soc_percent ?? 0).toFixed(0)}%</span>
                 <span className="text-xs text-gray-500">SoC</span>
               </div>
               <p className="text-xs text-gray-500">
-                {(der.capacity_wh / 1000).toFixed(1)} kWh capacity
+                {((der.capacity_wh ?? 0) / 1000).toFixed(1)} kWh capacity
               </p>
             </div>
           ))}

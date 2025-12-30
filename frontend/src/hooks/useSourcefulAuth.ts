@@ -75,18 +75,11 @@ export function useSourcefulAuth() {
 
       console.log('🔐 Requesting signature for message...');
 
-      // Sign the message with UI options for better UX
+      // Sign the message - no uiOptions for smoother auto-sign with embedded wallets
       const messageBytes = new TextEncoder().encode(plainTextMessage);
       const signatureResult = await signMessage({
         message: messageBytes,
         wallet: wallet,
-        options: {
-          uiOptions: {
-            title: 'Sign to authenticate with Sourceful API',
-            description: 'This signature grants access to your energy data.',
-            buttonText: 'Sign Message',
-          },
-        },
       });
 
       console.log('🔐 Signature received:', signatureResult);

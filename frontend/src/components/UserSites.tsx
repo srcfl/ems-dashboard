@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallets } from '@privy-io/react-auth/solana';
-import { Home, Loader2, AlertCircle, Pencil, Check, X, Key } from 'lucide-react';
+import { Home, Loader2, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { useDataContext } from '../contexts/DataContext';
 import { getSitesForWallet } from '../api/data-service';
 
@@ -78,36 +78,37 @@ export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
   }
 
   // Show credential generation state
-  if (isGeneratingCredentials || needsCredentials) {
+  if (isGeneratingCredentials) {
     return (
       <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-        <div className="flex items-center gap-2 text-yellow-400 mb-2">
-          {isGeneratingCredentials ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Generating API credentials...
-            </>
-          ) : (
-            <>
-              <Key className="w-4 h-4" />
-              API credentials needed
-            </>
-          )}
+        <div className="flex items-center gap-2 text-yellow-400">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Authenticating with Sourceful API...
         </div>
-        {credentialError && (
-          <p className="text-red-400 text-sm mb-2">{credentialError}</p>
-        )}
-        {needsCredentials && !isGeneratingCredentials && (
-          <button
-            onClick={() => generateCredentials()}
-            className="px-3 py-1.5 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-500 transition-colors"
-          >
-            Sign to authenticate
-          </button>
-        )}
         <p className="text-gray-500 text-xs mt-2">
-          You'll be asked to sign a message with your wallet to authenticate with the Sourceful API.
+          Please approve the signature request in your wallet.
         </p>
+      </div>
+    );
+  }
+
+  // Show sign button when credentials are needed
+  if (needsCredentials) {
+    return (
+      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 text-center">
+        <h3 className="text-lg font-medium text-white mb-2">Connect to Sourceful API</h3>
+        <p className="text-gray-400 text-sm mb-4">
+          Sign a message to access your energy data. This is a one-time step that stays valid for 1 year.
+        </p>
+        {credentialError && (
+          <p className="text-red-400 text-sm mb-3">{credentialError}</p>
+        )}
+        <button
+          onClick={() => generateCredentials()}
+          className="px-6 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500 transition-colors font-medium"
+        >
+          Sign & Connect
+        </button>
       </div>
     );
   }

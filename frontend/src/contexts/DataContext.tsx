@@ -37,10 +37,10 @@ export function DataProvider({ children }: DataProviderProps) {
     clearAuth,
   } = useSourcefulAuth();
 
-  // Log when credentials are needed
+  // Log when credentials are needed (user must click to sign)
   useEffect(() => {
     if (ready && !hasCredentials && !isGenerating) {
-      console.log('🔐 Credentials needed. User must click to sign.');
+      console.log('🔐 Credentials needed - user must sign to authenticate');
     }
   }, [ready, hasCredentials, isGenerating]);
 

@@ -154,27 +154,27 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
           {/* Price */}
           <div className="flex justify-between">
             <span className="text-gray-400">Price</span>
-            <span className="text-amber-400 font-medium">{data.priceOre.toFixed(1)} öre/kWh</span>
+            <span className="text-amber-400 font-medium">{(data.priceOre ?? 0).toFixed(1)} öre/kWh</span>
           </div>
 
           {/* Load Forecast */}
-          {data.loadForecast > 0 && (
+          {(data.loadForecast ?? 0) > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-400">Expected Load</span>
-              <span className="text-red-400 font-medium">{(data.loadForecast / 1000).toFixed(2)} kW</span>
+              <span className="text-red-400 font-medium">{((data.loadForecast ?? 0) / 1000).toFixed(2)} kW</span>
             </div>
           )}
 
           {/* Production Forecast */}
-          {data.productionForecast > 0 && (
+          {(data.productionForecast ?? 0) > 0 && (
             <div className="flex justify-between">
               <span className="text-gray-400">Expected Solar</span>
-              <span className="text-yellow-400 font-medium">{(data.productionForecast / 1000).toFixed(2)} kW</span>
+              <span className="text-yellow-400 font-medium">{((data.productionForecast ?? 0) / 1000).toFixed(2)} kW</span>
             </div>
           )}
 
           {/* Battery SoC */}
-          {data.batterySoc !== null && (
+          {data.batterySoc != null && (
             <div className="flex justify-between">
               <span className="text-gray-400">Battery SoC</span>
               <span className="text-orange-400 font-bold">{data.batterySoc.toFixed(0)}%</span>
@@ -182,7 +182,7 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
           )}
 
           {/* EV SoC */}
-          {data.evSoc !== null && (
+          {data.evSoc != null && (
             <div className="flex justify-between">
               <span className="text-gray-400">EV SoC</span>
               <span className="text-cyan-400 font-bold">{data.evSoc.toFixed(0)}%</span>
@@ -190,7 +190,7 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
           )}
 
           {/* Battery Power */}
-          {data.batteryPower !== null && data.batteryPower !== 0 && (
+          {data.batteryPower != null && data.batteryPower !== 0 && (
             <div className="flex justify-between">
               <span className="text-gray-400">Battery Power</span>
               <span className={`font-medium ${data.batteryPower > 0 ? 'text-green-400' : 'text-orange-400'}`}>
