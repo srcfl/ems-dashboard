@@ -5,6 +5,7 @@ import { SiteDashboard } from './components/SiteDashboard';
 import { AuthButton } from './components/AuthButton';
 import { UserSites } from './components/UserSites';
 import { usePrivyEnv } from './auth/PrivyProvider';
+import { OpenSourceBanner } from './components/OpenSourceBanner';
 
 function App() {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -36,6 +37,7 @@ function App() {
   if (!authenticated) {
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col">
+        <OpenSourceBanner />
         {/* Header */}
         <header className="bg-gray-800 border-b border-gray-700">
           <div className="max-w-7xl mx-auto px-4 py-4">
@@ -102,6 +104,7 @@ function App() {
   // Authenticated - show dashboard
   return (
     <div className="min-h-screen bg-gray-900 text-white">
+      <OpenSourceBanner />
       {/* Header */}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-4">
