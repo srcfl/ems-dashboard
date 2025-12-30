@@ -111,18 +111,20 @@ export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
     return '1m';                                 // 1 hour -> 1 min (60 points)
   };
 
-  // Format time label based on time range
+  // Format time label based on time range (Safari-compatible)
   const formatTimeLabel = (date: Date, range: string): string => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const timeStr = `${hours}:${minutes}`;
+
     if (range.includes('7d')) {
       // Show day and hour for 7 days
-      return date.toLocaleDateString('sv-SE', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
-    }
-    if (range.includes('24h')) {
-      // Show hour:minute for 24 hours
-      return date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return `${days[date.getDay()]} ${timeStr}`;
     }
     // Default: just time
-    return date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+    return timeStr;
   };
 
   useEffect(() => {

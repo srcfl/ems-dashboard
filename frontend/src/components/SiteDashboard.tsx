@@ -10,6 +10,7 @@ import { EVChargerCard } from './EVChargerCard';
 import { LoadCard } from './LoadCard';
 import { PowerChart } from './PowerChart';
 import { EMSPanel } from './EMSPanel';
+import { ErrorBoundary } from './ErrorBoundary';
 
 // Local storage for site names (shared with UserSites)
 function getSiteName(siteId: string): string | null {
@@ -252,10 +253,20 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
       </div>
 
       {/* Power Chart */}
-      <PowerChart siteId={siteId} timeRange={timeRange} />
+      <ErrorBoundary
+        fallback={
+          <div className="bg-gray-800 rounded-xl p-6 h-80 flex items-center justify-center">
+            <div className="text-red-400">Chart failed to load. Try refreshing the page.</div>
+          </div>
+        }
+      >
+        <PowerChart siteId={siteId} timeRange={timeRange} />
+      </ErrorBoundary>
 
       {/* EMS Panel */}
-      <EMSPanel siteId={siteId} />
+      <ErrorBoundary>
+        <EMSPanel siteId={siteId} />
+      </ErrorBoundary>
 
       {/* DER Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -5,19 +5,17 @@ if (typeof window !== 'undefined') {
   window.Buffer = Buffer;
 }
 
-import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
 import { PrivyProvider } from './auth/PrivyProvider.tsx';
 import { DataProvider } from './contexts/DataContext.tsx';
 
+// Note: StrictMode removed to avoid double-render issues with Privy
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <PrivyProvider>
-      <DataProvider>
-        <App />
-      </DataProvider>
-    </PrivyProvider>
-  </StrictMode>
+  <PrivyProvider>
+    <DataProvider>
+      <App />
+    </DataProvider>
+  </PrivyProvider>
 );
