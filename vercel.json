@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "echo 'Skip global install'",
+  "rewrites": [
+    {
+      "source": "/ems/:path*",
+      "destination": "https://mainnet.srcful.dev/ems/:path*"
+    }
+  ]
+}
