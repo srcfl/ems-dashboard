@@ -134,6 +134,17 @@ Use {metric} to include current values:
 NOTIFY "Battery at {battery_soc}%, solar producing {pv_power}"
 \`\`\`
 
+## Multiline Messages
+Use \\n for line breaks in messages (NOT actual newlines):
+\`\`\`
+NOTIFY "Daily Summary:\\nSolar: {pv_power}\\nBattery: {battery_soc}%\\nGrid: {grid_power}"
+\`\`\`
+This renders as:
+Daily Summary:
+Solar: 5.2kW
+Battery: 85%
+Grid: -1.2kW
+
 ## Complete Examples
 
 ### Low Battery Alert with Hysteresis
@@ -204,6 +215,7 @@ If you cannot create a valid rule:
 7. Combine multiple conditions with AND/OR when needed
 8. ALL output must be in English only - SEL is an English-only language
 9. Understand user input in any language, but always generate English SEL code and explanations
+10. For multiline messages, use \\n escape sequence (NOT actual line breaks or backslash-newline)
 
 ## Examples
 
@@ -226,6 +238,13 @@ User: "Tell me when solar is producing and battery is full"
   "success": true,
   "code": "# High solar with full battery\\n$battery_full = 90%\\n$solar_min = 1kW\\n\\nON pv_power > $solar_min AND battery_soc > $battery_full\\n  NOTIFY \\"Solar producing {pv_power} with battery at {battery_soc}%\\"\\n  COOLDOWN 1hour",
   "explanation": "Alerts when solar output exceeds 1kW and battery is above 90%"
+}
+
+User: "Send a daily summary at 6 PM"
+{
+  "success": true,
+  "code": "# Daily energy summary at 6 PM\\nEVERY day AT 18:00\\n  NOTIFY \\"Daily Summary:\\\\nSolar: {pv_power}\\\\nBattery: {battery_soc}%\\\\nGrid: {grid_power}\\"",
+  "explanation": "Sends a daily summary notification at 6 PM with current energy metrics"
 }`;
 
 export async function parseAutomationIntent(userInput: string): Promise<AISELResponse> {
