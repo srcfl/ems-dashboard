@@ -136,21 +136,53 @@ interface TimeSeriesDataPoint {
 // ============ API Functions ============
 
 /**
+ * Site info returned from the API (with optional name from settings)
+ */
+export interface SiteInfo {
+  id: string;
+  name: string | null;
+}
+
+/**
  * Get all sites for the authenticated wallet
  */
 export async function getSitesFromAPI(credentials: AuthCredentials): Promise<string[]> {
+  const siteInfoList = await getSitesWithNamesFromAPI(credentials);
+  return siteInfoList.map(s => s.id);
+}
+
+/**
+ * Get all sites with their names for the authenticated wallet
+ */
+export async function getSitesWithNamesFromAPI(credentials: AuthCredentials): Promise<SiteInfo[]> {
   const query = `
     query Sites {
       sites {
         list {
           id
+          settings {
+            key
+            value
+          }
         }
       }
     }
   `;
 
   const data = await graphqlQuery<{ sites: { list: SiteV2[] } }>(query, undefined, credentials);
-  return data.sites.list.map(site => site.id);
+
+  return data.sites.list.map(site => {
+    // Look for name in settings (common keys: name, label, site_name)
+    const nameSetting = site.settings?.find(s =>
+      s.key.toLowerCase() === 'name' ||
+      s.key.toLowerCase() === 'label' ||
+      s.key.toLowerCase() === 'site_name'
+    );
+    return {
+      id: site.id,
+      name: nameSetting?.value || null
+    };
+  });
 }
 
 /**

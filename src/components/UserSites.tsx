@@ -3,22 +3,37 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useWallets } from '@privy-io/react-auth/solana';
 import { Home, Loader2, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { useDataContext } from '../contexts/DataContext';
-import { getSitesForWallet } from '../api/data-service';
-import { DEMO_SITES } from '../api/demo-data';
+import { getSitesWithNames } from '../api/data-service';
+import type { SiteInfo } from '../api/sourceful-client';
 
-// Local storage for site names (with demo site fallbacks)
+// Local storage for user-customized site names
+// The API names are stored separately and used as fallback
+const USER_NAMES_KEY = 'site_names_user';
+const API_NAMES_KEY = 'site_names_api';
+
 function getSiteName(siteId: string): string | null {
-  const names = JSON.parse(localStorage.getItem('site_names') || '{}');
-  if (names[siteId]) return names[siteId];
-  // Fall back to demo site names
-  const demoSite = DEMO_SITES.find(s => s.id === siteId);
-  return demoSite?.name || null;
+  // First check user-customized names
+  const userNames = JSON.parse(localStorage.getItem(USER_NAMES_KEY) || '{}');
+  if (userNames[siteId]) return userNames[siteId];
+  // Fall back to API-provided names
+  const apiNames = JSON.parse(localStorage.getItem(API_NAMES_KEY) || '{}');
+  return apiNames[siteId] || null;
 }
 
 function setSiteName(siteId: string, name: string) {
-  const names = JSON.parse(localStorage.getItem('site_names') || '{}');
+  const names = JSON.parse(localStorage.getItem(USER_NAMES_KEY) || '{}');
   names[siteId] = name;
-  localStorage.setItem('site_names', JSON.stringify(names));
+  localStorage.setItem(USER_NAMES_KEY, JSON.stringify(names));
+}
+
+function cacheApiSiteNames(sites: SiteInfo[]) {
+  const apiNames: Record<string, string> = {};
+  for (const site of sites) {
+    if (site.name) {
+      apiNames[site.id] = site.name;
+    }
+  }
+  localStorage.setItem(API_NAMES_KEY, JSON.stringify(apiNames));
 }
 
 interface UserSitesProps {
@@ -66,9 +81,12 @@ export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
     setLoading(true);
     setError(null);
 
-    getSitesForWallet(credentials)
-      .then((siteList) => {
-        setSites(siteList);
+    getSitesWithNames(credentials)
+      .then((siteInfoList) => {
+        // Cache API-provided names
+        cacheApiSiteNames(siteInfoList);
+        // Extract just the IDs for the sites list
+        setSites(siteInfoList.map(s => s.id));
         setLoading(false);
       })
       .catch((err) => {

@@ -1,6 +1,7 @@
 import type { SiteOverview, TimeSeriesResponse } from './types';
 import type { AuthCredentials } from './sourceful-auth';
 import * as sourcefulClient from './sourceful-client';
+import type { SiteInfo } from './sourceful-client';
 import { getDemoSiteOverview, getDemoTimeSeries, DEMO_SITES } from './demo-data';
 
 // Check if running in demo mode
@@ -18,6 +19,18 @@ export async function getSitesForWallet(
     return DEMO_SITES.map(s => s.id);
   }
   return sourcefulClient.getSitesFromAPI(credentials);
+}
+
+/**
+ * Get sites with names for a wallet address
+ */
+export async function getSitesWithNames(
+  credentials: AuthCredentials
+): Promise<SiteInfo[]> {
+  if (isDemoMode(credentials)) {
+    return DEMO_SITES.map(s => ({ id: s.id, name: s.name }));
+  }
+  return sourcefulClient.getSitesWithNamesFromAPI(credentials);
 }
 
 /**
