@@ -53,65 +53,34 @@ An open-source, real-time energy management dashboard for monitoring distributed
 git clone https://github.com/srcfl/ems-dashboard.git
 cd ems-dashboard
 
-# Install frontend dependencies
-cd frontend
+# Install dependencies
 npm install
-```
 
-**Note:** The Privy app IDs for Sourceful Energy are configured by default, so the project works out of the box. No environment configuration needed!
-
-**Important:** This dashboard is currently configured to work **only on `localhost:3000`** due to Privy's domain restrictions. This is intentional - we provide this as a **blueprint and reference implementation** for developers. We're working on a better solution for bringing your own wallet authentication, but for now, this serves as a complete example of how to integrate with the Sourceful API.
-
-### Running
-
-#### Option 1: Docker (Recommended)
-
-The easiest way to run the dashboard:
-
-```bash
-# Build and start
-docker-compose up
-
-# Or run in background
-docker-compose up -d
-
-# Stop
-docker-compose down
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-#### Option 2: Node.js Development Server
-
-```bash
-cd frontend
+# Start development server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+**Note:** The Privy app IDs for Sourceful Energy are configured by default, so the project works out of the box. No environment configuration needed!
+
 ## Architecture
 
 ```
 ems-dashboard/
-├── frontend/          # React + TypeScript + Vite
-│   ├── src/
-│   │   ├── api/       # Sourceful API client
-│   │   ├── auth/      # Privy authentication
-│   │   ├── components/# UI components
-│   │   ├── contexts/  # React contexts
-│   │   └── hooks/     # Custom hooks
-│   └── ...
-└── docs/              # Documentation
+├── src/
+│   ├── api/           # Sourceful API client
+│   ├── auth/          # Privy authentication
+│   ├── components/    # UI components
+│   ├── contexts/      # React contexts
+│   └── hooks/         # Custom hooks
+├── public/            # Static assets
+└── index.html         # Entry point
 ```
 
 ## API Integration
 
 The dashboard connects directly to the Sourceful GraphQL API (`api-vnext.srcful.dev`) using Ed25519 wallet signatures for authentication.
-
-For detailed API documentation, see:
-- [API Blueprint](docs/SOURCEFUL_API_BLUEPRINT.md) - Developer guide for building on Sourceful
-- [API Documentation Gaps](docs/API_DOCUMENTATION_GAPS.md) - Known documentation issues
 
 ## DER Types Supported
 
@@ -161,8 +130,6 @@ We welcome contributions from the Sourceful Energy community! Whether you're fix
 Feel free to open an issue to discuss ideas, report bugs, or ask questions. We're here to help!
 
 ## Security
-
-See [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) for security review details.
 
 Key security features:
 - No hardcoded secrets

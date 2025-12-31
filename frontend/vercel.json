@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/ems/:path*",
-      "destination": "https://mainnet.srcful.dev/ems/:path*"
-    }
-  ]
-}
