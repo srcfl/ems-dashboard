@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useSourcefulAuth } from '../hooks/useSourcefulAuth';
 import type { AuthCredentials } from '../api/sourceful-auth';
 
@@ -10,6 +10,9 @@ interface DataContextType {
   generateCredentials: () => Promise<AuthCredentials | null>;
   clearCredentials: () => void;
   needsCredentials: boolean;
+  // Demo mode
+  isDemoMode: boolean;
+  setDemoMode: (demo: boolean) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -37,26 +40,49 @@ export function DataProvider({ children }: DataProviderProps) {
     clearAuth,
   } = useSourcefulAuth();
 
+  // Demo mode state - persisted in localStorage
+  const [isDemoMode, setIsDemoMode] = useState(() => {
+    const saved = localStorage.getItem('demo_mode');
+    return saved === 'true';
+  });
+
+  const handleSetDemoMode = (demo: boolean) => {
+    setIsDemoMode(demo);
+    localStorage.setItem('demo_mode', String(demo));
+  };
+
   // Log when credentials are needed (user must click to sign)
   useEffect(() => {
-    if (ready && !hasCredentials && !isGenerating) {
-      console.log('🔐 Credentials needed - user must sign to authenticate');
+    if (ready && !hasCredentials && !isGenerating && !isDemoMode) {
+      console.log('Credentials needed - user must sign to authenticate');
     }
-  }, [ready, hasCredentials, isGenerating]);
+  }, [ready, hasCredentials, isGenerating, isDemoMode]);
 
-  const needsCredentials = !hasCredentials && !isGenerating;
-  const isReady = hasCredentials;
+  // In demo mode, we're always ready
+  const needsCredentials = !isDemoMode && !hasCredentials && !isGenerating;
+  const isReady = isDemoMode || hasCredentials;
+
+  // Create mock credentials for demo mode
+  const demoCredentials: AuthCredentials = {
+    message: 'demo-mode',
+    signature: 'demo-signature',
+    walletAddress: 'demo-wallet',
+    issuedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+  };
 
   return (
     <DataContext.Provider
       value={{
-        credentials,
+        credentials: isDemoMode ? demoCredentials : credentials,
         isReady,
         isGeneratingCredentials: isGenerating,
         credentialError: error,
         generateCredentials,
         clearCredentials: clearAuth,
         needsCredentials,
+        isDemoMode,
+        setDemoMode: handleSetDemoMode,
       }}
     >
       {children}

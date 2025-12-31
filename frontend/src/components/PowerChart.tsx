@@ -1,14 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
+import ReactECharts from 'echarts-for-react';
+import type { EChartsOption, XAXisComponentOption } from 'echarts';
 import { getTimeSeries } from '../api/data-service';
 import { useDataContext } from '../contexts/DataContext';
 
@@ -18,181 +11,72 @@ interface PowerChartProps {
 }
 
 interface ChartDataPoint {
-  time: string;
-  timestamp: Date;
-  [key: string]: string | number | Date;
+  time: Date;
+  load?: number;
+  pv?: number;
+  battery?: number;
+  grid?: number;
+  [key: string]: Date | number | undefined;
 }
 
-const DER_COLORS: Record<string, string> = {
-  load: '#F97316',      // Orange for load
-  pv: '#EAB308',        // Yellow for solar
-  battery: '#A855F7',   // Purple for battery
-  meter: '#3B82F6',     // Blue for grid
-  grid: '#3B82F6',      // Alias
-  ev_charger: '#06B6D4',
-  v2x_charger: '#06B6D4',
-  charger: '#06B6D4',
-  energyMeter: '#3B82F6',
-  p1Meter: '#3B82F6',
+const COLORS = {
+  load: '#F97316',
+  pv: '#EAB308',
+  battery: '#A855F7',
+  grid: '#3B82F6',
 };
 
-const DER_LABELS: Record<string, string> = {
+const LABELS: Record<string, string> = {
   load: 'Load',
-  grid: 'Grid',
   pv: 'Solar',
   battery: 'Battery',
-  meter: 'Grid',
-  ev_charger: 'EV Charger',
-  v2x_charger: 'V2X Charger',
-  charger: 'Charger',
+  grid: 'Grid',
 };
-
-// Custom legend with click-to-toggle functionality
-interface CustomLegendProps {
-  payload?: Array<{ value: string; color: string; dataKey: string }>;
-  hiddenSeries: Set<string>;
-  onToggle: (dataKey: string) => void;
-}
-
-function CustomLegend({ payload, hiddenSeries, onToggle }: CustomLegendProps) {
-  if (!payload) return null;
-
-  return (
-    <div className="flex justify-center gap-4 mt-2 flex-wrap">
-      {payload.map((entry) => {
-        const isHidden = hiddenSeries.has(entry.dataKey);
-        return (
-          <button
-            key={entry.dataKey}
-            onClick={() => onToggle(entry.dataKey)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded transition-all ${
-              isHidden ? 'opacity-40' : 'opacity-100'
-            } hover:bg-gray-700`}
-          >
-            <span
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className={`text-sm ${isHidden ? 'line-through text-gray-500' : 'text-gray-300'}`}>
-              {entry.value}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
   const { credentials } = useDataContext();
   const [data, setData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [derTypes, setDerTypes] = useState<string[]>([]);
-  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
+  const chartRef = useRef<ReactECharts>(null);
 
-  const toggleSeries = useCallback((dataKey: string) => {
-    setHiddenSeries((prev) => {
-      const next = new Set(prev);
-      if (next.has(dataKey)) {
-        next.delete(dataKey);
-      } else {
-        next.add(dataKey);
-      }
-      return next;
-    });
-  }, []);
-
-  // Determine appropriate resolution based on time range
-  const getResolutionForRange = (range: string): string => {
-    if (range.includes('7d')) return '1h';      // 7 days -> hourly (168 points)
-    if (range.includes('24h')) return '15m';    // 24 hours -> 15 min (96 points)
-    if (range.includes('6h')) return '5m';      // 6 hours -> 5 min (72 points)
-    return '1m';                                 // 1 hour -> 1 min (60 points)
-  };
-
-  // Format time label based on time range (Safari-compatible)
-  const formatTimeLabel = (date: Date, range: string): string => {
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    const timeStr = `${hours}:${minutes}`;
-
-    if (range.includes('7d')) {
-      // Show day and hour for 7 days
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      return `${days[date.getDay()]} ${timeStr}`;
-    }
-    // Default: just time
-    return timeStr;
+  const getResolution = (range: string): string => {
+    if (range.includes('7d')) return '1h';
+    if (range.includes('24h')) return '15m';
+    if (range.includes('6h')) return '5m';
+    return '1m';
   };
 
   useEffect(() => {
-    // Wait for credentials
-    if (!credentials) {
-      return;
-    }
+    if (!credentials) return;
 
     setLoading(true);
     setError(null);
 
-    const resolution = getResolutionForRange(timeRange);
+    const resolution = getResolution(timeRange);
 
     getTimeSeries(siteId, credentials, { start: timeRange, aggregate: resolution })
       .then((response) => {
-        // Group by timestamp and DER type
         const grouped: Record<string, ChartDataPoint> = {};
-        const types = new Set<string>();
 
         response.data.forEach((point) => {
           const time = new Date(point.timestamp);
           const key = time.toISOString();
 
           if (!grouped[key]) {
-            grouped[key] = {
-              time: formatTimeLabel(time, timeRange),
-              timestamp: time,
-            };
+            grouped[key] = { time };
           }
 
           const derType = point.type || 'unknown';
-          types.add(derType);
-
-          // Aggregate by type if multiple devices
-          const currentValue = (grouped[key][derType] as number) || 0;
-          grouped[key][derType] = currentValue + (point.value || 0);
+          const current = (grouped[key][derType as keyof ChartDataPoint] as number) || 0;
+          (grouped[key] as Record<string, unknown>)[derType] = current + (point.value || 0);
         });
-
-        // Calculate load for each timestamp if not already provided by API
-        // Load = Grid + |PV| + Battery (where PV is typically negative)
-        Object.values(grouped).forEach((point) => {
-          // Only calculate load if it wasn't directly provided by the API
-          if (!point.load) {
-            const grid = (point.meter as number) || (point.energyMeter as number) || (point.p1Meter as number) || 0;
-            const pv = (point.pv as number) || 0;
-            const battery = (point.battery as number) || 0;
-
-            // Calculate load: grid import + solar production + battery discharge
-            point.load = grid + Math.abs(pv) + battery;
-          }
-        });
-
-        // Only add load to types if we have load data
-        const hasLoadData = Object.values(grouped).some((point) => (point.load as number) > 0);
-        if (hasLoadData) {
-          types.add('load');
-        }
 
         const sortedData = Object.values(grouped).sort(
-          (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+          (a, b) => a.time.getTime() - b.time.getTime()
         );
 
-        // Prioritize display order: load first, then others
-        const displayOrder = ['load', 'grid', 'pv', 'battery', 'meter', 'energyMeter', 'p1Meter', 'ev_charger', 'v2x_charger', 'charger'];
-        const orderedTypes = displayOrder.filter(t => types.has(t));
-
         setData(sortedData);
-        setDerTypes(orderedTypes.filter(t => t !== 'unknown'));
         setLoading(false);
       })
       .catch((err) => {
@@ -201,17 +85,34 @@ export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
       });
   }, [siteId, timeRange, credentials]);
 
+  const resetZoom = useCallback(() => {
+    const chart = chartRef.current?.getEchartsInstance();
+    if (chart) {
+      chart.dispatchAction({
+        type: 'dataZoom',
+        start: 0,
+        end: 100,
+      });
+    }
+  }, []);
+
   if (loading) {
     return (
-      <div className="bg-gray-800 rounded-xl p-6 h-80 flex items-center justify-center">
-        <div className="text-gray-400">Loading chart data...</div>
+      <div className="bg-gray-800/30 rounded-2xl p-6 h-96 flex items-center justify-center border border-gray-700/30 backdrop-blur-xl">
+        <motion.div
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="text-gray-400"
+        >
+          Loading chart...
+        </motion.div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-gray-800 rounded-xl p-6 h-80 flex items-center justify-center">
+      <div className="bg-gray-800/30 rounded-2xl p-6 h-96 flex items-center justify-center border border-gray-700/30 backdrop-blur-xl">
         <div className="text-red-400">Error: {error}</div>
       </div>
     );
@@ -219,72 +120,262 @@ export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="bg-gray-800 rounded-xl p-6 h-80 flex items-center justify-center">
-        <div className="text-gray-400">No data available for this time range</div>
+      <div className="bg-gray-800/30 rounded-2xl p-6 h-96 flex items-center justify-center border border-gray-700/30 backdrop-blur-xl">
+        <div className="text-gray-400">No data available</div>
       </div>
     );
   }
 
+  // Prepare series data
+  const seriesKeys = ['load', 'pv', 'battery', 'grid'].filter(key =>
+    data.some(d => d[key as keyof ChartDataPoint] !== undefined)
+  );
+
+  const option: EChartsOption = {
+    backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 1000,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(17, 24, 39, 0.95)',
+      borderColor: 'rgba(55, 65, 81, 0.5)',
+      borderWidth: 1,
+      padding: [12, 16],
+      textStyle: {
+        color: '#E5E7EB',
+        fontSize: 12,
+      },
+      axisPointer: {
+        type: 'cross',
+        lineStyle: {
+          color: 'rgba(255, 255, 255, 0.2)',
+        },
+        crossStyle: {
+          color: 'rgba(255, 255, 255, 0.2)',
+        },
+      },
+      formatter: (params: unknown) => {
+        const arr = params as Array<{ seriesName: string; value: [Date, number]; color: string }>;
+        if (!arr.length) return '';
+        const time = new Date(arr[0].value[0]);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const timeStr = `${pad(time.getHours())}:${pad(time.getMinutes())}`;
+        let html = `<div style="font-weight: 500; margin-bottom: 8px; color: #9CA3AF;">${timeStr}</div>`;
+        arr.forEach(item => {
+          const value = item.value[1];
+          const unit = Math.abs(value) >= 1000 ? 'kW' : 'W';
+          const displayValue = Math.abs(value) >= 1000 ? (value / 1000).toFixed(2) : value.toFixed(0);
+          html += `<div style="display: flex; align-items: center; gap: 8px; margin: 4px 0;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: ${item.color}; box-shadow: 0 0 6px ${item.color};"></span>
+            <span>${item.seriesName}</span>
+            <span style="margin-left: auto; font-weight: 600;">${displayValue} ${unit}</span>
+          </div>`;
+        });
+        return html;
+      },
+    },
+    legend: {
+      data: seriesKeys.map(key => LABELS[key]),
+      top: 10,
+      right: 20,
+      textStyle: {
+        color: '#9CA3AF',
+        fontSize: 12,
+      },
+      itemWidth: 12,
+      itemHeight: 12,
+      icon: 'circle',
+    },
+    toolbox: {
+      feature: {
+        dataZoom: {
+          yAxisIndex: 'none',
+          title: {
+            zoom: 'Area Zoom',
+            back: 'Reset Zoom',
+          },
+        },
+        restore: {
+          title: 'Reset',
+        },
+      },
+      right: 20,
+      top: 10,
+      iconStyle: {
+        borderColor: '#6B7280',
+      },
+      emphasis: {
+        iconStyle: {
+          borderColor: '#F59E0B',
+        },
+      },
+    },
+    grid: {
+      left: 60,
+      right: 20,
+      top: 60,
+      bottom: 80,
+    },
+    xAxis: {
+      type: 'time',
+      axisLine: {
+        show: false,
+      },
+      axisTick: {
+        show: false,
+      },
+      axisLabel: {
+        color: '#6B7280',
+        fontSize: 11,
+        formatter: (value: number) => {
+          const date = new Date(value);
+          const pad = (n: number) => n.toString().padStart(2, '0');
+          return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        },
+      },
+      splitLine: {
+        show: false,
+      },
+    } as XAXisComponentOption,
+    yAxis: {
+      type: 'value',
+      axisLine: {
+        show: false,
+      },
+      axisTick: {
+        show: false,
+      },
+      axisLabel: {
+        color: '#6B7280',
+        fontSize: 11,
+        formatter: (value: number) =>
+          Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0),
+      },
+      splitLine: {
+        lineStyle: {
+          color: 'rgba(55, 65, 81, 0.5)',
+          type: 'dashed',
+        },
+      },
+    },
+    dataZoom: [
+      // Slider at the bottom
+      {
+        type: 'slider',
+        xAxisIndex: 0,
+        start: 0,
+        end: 100,
+        height: 30,
+        bottom: 10,
+        borderColor: 'rgba(55, 65, 81, 0.5)',
+        backgroundColor: 'rgba(31, 41, 55, 0.5)',
+        fillerColor: 'rgba(245, 158, 11, 0.2)',
+        handleStyle: {
+          color: '#F59E0B',
+          borderColor: '#F59E0B',
+        },
+        moveHandleStyle: {
+          color: '#F59E0B',
+        },
+        textStyle: {
+          color: '#9CA3AF',
+          fontSize: 10,
+        },
+        dataBackground: {
+          lineStyle: {
+            color: 'rgba(245, 158, 11, 0.5)',
+          },
+          areaStyle: {
+            color: 'rgba(245, 158, 11, 0.1)',
+          },
+        },
+        selectedDataBackground: {
+          lineStyle: {
+            color: '#F59E0B',
+          },
+          areaStyle: {
+            color: 'rgba(245, 158, 11, 0.3)',
+          },
+        },
+        brushSelect: true,
+      },
+      // Inside zoom (mouse wheel + drag)
+      {
+        type: 'inside',
+        xAxisIndex: 0,
+        start: 0,
+        end: 100,
+        zoomOnMouseWheel: true,
+        moveOnMouseMove: true,
+        moveOnMouseWheel: false,
+      },
+    ],
+    series: seriesKeys.map(key => ({
+      name: LABELS[key],
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      sampling: 'lttb',
+      lineStyle: {
+        width: 2,
+        color: COLORS[key as keyof typeof COLORS],
+        shadowColor: COLORS[key as keyof typeof COLORS],
+        shadowBlur: 8,
+        shadowOffsetY: 4,
+      },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: `${COLORS[key as keyof typeof COLORS]}40` },
+            { offset: 1, color: `${COLORS[key as keyof typeof COLORS]}00` },
+          ],
+        },
+      },
+      data: data.map(d => [d.time, d[key as keyof ChartDataPoint] || 0]),
+    })),
+  };
+
   return (
-    <div className="bg-gray-800 rounded-xl p-6">
-      <h3 className="text-gray-400 text-sm font-medium mb-4">Power Over Time</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis
-            dataKey="time"
-            stroke="#9CA3AF"
-            tick={{ fill: '#9CA3AF', fontSize: 12 }}
-          />
-          <YAxis
-            stroke="#9CA3AF"
-            tick={{ fill: '#9CA3AF', fontSize: 12 }}
-            tickFormatter={(value) =>
-              Math.abs(value) >= 1000
-                ? `${(value / 1000).toFixed(1)}k`
-                : value.toFixed(0)
-            }
-            label={{
-              value: 'W',
-              angle: -90,
-              position: 'insideLeft',
-              fill: '#9CA3AF',
-            }}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: '#1F2937',
-              border: '1px solid #374151',
-              borderRadius: '0.5rem',
-            }}
-            labelStyle={{ color: '#9CA3AF' }}
-            formatter={(value) => [
-              `${Number(value).toFixed(0)} W`,
-              undefined,
-            ]}
-          />
-          <Legend
-            content={
-              <CustomLegend
-                hiddenSeries={hiddenSeries}
-                onToggle={toggleSeries}
-              />
-            }
-          />
-          {derTypes.map((type) => (
-            <Line
-              key={type}
-              type="monotone"
-              dataKey={type}
-              stroke={DER_COLORS[type.toLowerCase()] || '#6B7280'}
-              strokeWidth={type === 'load' ? 3 : 2}
-              dot={false}
-              name={DER_LABELS[type] || type.replace('_', ' ').toUpperCase()}
-              hide={hiddenSeries.has(type)}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative bg-gray-800/30 rounded-2xl p-4 border border-gray-700/30 backdrop-blur-xl overflow-hidden"
+    >
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+
+      <div className="flex items-center justify-between mb-2 relative z-10">
+        <h3 className="text-gray-300 text-sm font-medium">Power Over Time</h3>
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span>Scroll to zoom</span>
+          <span>|</span>
+          <span>Drag to pan</span>
+          <span>|</span>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={resetZoom}
+            className="text-amber-400 hover:text-amber-300"
+          >
+            Reset
+          </motion.button>
+        </div>
+      </div>
+
+      <div className="relative z-10">
+        <ReactECharts
+          ref={chartRef}
+          option={option}
+          style={{ height: 350 }}
+          opts={{ renderer: 'canvas' }}
+          notMerge={true}
+        />
+      </div>
+    </motion.div>
   );
 }
