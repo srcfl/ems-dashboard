@@ -3,6 +3,12 @@
 
 const SEL_API_URL = import.meta.env.VITE_SEL_API_URL || 'http://localhost:3030';
 
+// Signature function type for authenticated requests
+export type SignRequestFn = (message: string) => Promise<{
+  signature: string;
+  walletAddress: string;
+}>;
+
 export interface ValidateResponse {
   valid: boolean;
   error?: string;
@@ -160,73 +166,122 @@ export interface UpdateWebhookRequest {
 
 class SELClient {
   private baseUrl: string;
+  private signRequest: SignRequestFn | null = null;
 
   constructor(baseUrl: string = SEL_API_URL) {
     this.baseUrl = baseUrl;
   }
 
-  private async fetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  /**
+   * Set the signing function for authenticated requests
+   */
+  setSigningFunction(signFn: SignRequestFn | null) {
+    this.signRequest = signFn;
+  }
+
+  /**
+   * Check if signing is available
+   */
+  hasSigningFunction(): boolean {
+    return this.signRequest !== null;
+  }
+
+  private async fetch<T>(endpoint: string, options?: RequestInit, requireAuth: boolean = false): Promise<T> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options?.headers as Record<string, string>),
+    };
+
+    // Add auth headers if required and signing function is available
+    if (requireAuth && this.signRequest) {
+      const method = options?.method || 'GET';
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+      const message = `${method}:${endpoint}:${timestamp}`;
+
+      try {
+        const { signature, walletAddress } = await this.signRequest(message);
+        headers['X-Wallet-Address'] = walletAddress;
+        headers['X-Signature'] = signature;
+        headers['X-Timestamp'] = timestamp;
+      } catch (err) {
+        console.error('Failed to sign request:', err);
+        throw new Error('Authentication failed: could not sign request');
+      }
+    }
+
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
-      throw new Error(`SEL API error: ${response.status}`);
+      const errorBody = await response.text().catch(() => '');
+      throw new Error(`SEL API error: ${response.status} - ${errorBody}`);
     }
 
     return response.json();
   }
 
   /**
-   * Check if the SEL server is available
+   * Public fetch for unauthenticated endpoints
+   */
+  private async fetchPublic<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    return this.fetch<T>(endpoint, options, false);
+  }
+
+  /**
+   * Authenticated fetch for protected endpoints
+   */
+  private async fetchAuth<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    return this.fetch<T>(endpoint, options, true);
+  }
+
+  /**
+   * Check if the SEL server is available (public endpoint)
    */
   async health(): Promise<{ status: string; version: string }> {
     try {
-      return await this.fetch('/api/health');
+      return await this.fetchPublic('/api/health');
     } catch {
       return { status: 'unavailable', version: 'unknown' };
     }
   }
 
   /**
-   * Validate SEL code
+   * Validate SEL code (public endpoint)
    */
   async validate(code: string): Promise<ValidateResponse> {
-    return this.fetch('/api/validate', {
+    return this.fetchPublic('/api/validate', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
   }
 
   /**
-   * Compile SEL code to JSON
+   * Compile SEL code to JSON (public endpoint)
    */
   async compile(code: string): Promise<CompileResponse> {
-    return this.fetch('/api/compile', {
+    return this.fetchPublic('/api/compile', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
   }
 
   /**
-   * Store rules for a site
+   * Store rules for a site (authenticated)
    */
   async storeRules(siteId: string, code: string): Promise<StoreResponse> {
-    return this.fetch('/api/rules', {
+    return this.fetchAuth('/api/rules', {
       method: 'POST',
       body: JSON.stringify({ site_id: siteId, code }),
     });
   }
 
   /**
-   * Evaluate rules against current metrics
+   * Evaluate rules against current metrics (authenticated)
    */
   async evaluate(siteId: string, metrics: MetricsInput): Promise<EvaluateResponse> {
-    return this.fetch('/api/evaluate', {
+    return this.fetchAuth('/api/evaluate', {
       method: 'POST',
       body: JSON.stringify({
         site_id: siteId,
@@ -237,10 +292,10 @@ class SELClient {
   }
 
   /**
-   * Check and trigger scheduled rules
+   * Check and trigger scheduled rules (authenticated)
    */
   async checkSchedules(siteId: string): Promise<CheckSchedulesResponse> {
-    return this.fetch('/api/schedules/check', {
+    return this.fetchAuth('/api/schedules/check', {
       method: 'POST',
       body: JSON.stringify({
         site_id: siteId,
@@ -254,59 +309,59 @@ class SELClient {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * List webhooks for a site
+   * List webhooks for a site (authenticated)
    */
   async listWebhooks(siteId: string): Promise<WebhooksListResponse> {
-    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}`);
+    return this.fetchAuth(`/api/webhooks/${encodeURIComponent(siteId)}`);
   }
 
   /**
-   * Create a new webhook
+   * Create a new webhook (authenticated)
    */
   async createWebhook(siteId: string, webhook: CreateWebhookRequest): Promise<WebhookResponse> {
-    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}`, {
+    return this.fetchAuth(`/api/webhooks/${encodeURIComponent(siteId)}`, {
       method: 'POST',
       body: JSON.stringify(webhook),
     });
   }
 
   /**
-   * Update a webhook
+   * Update a webhook (authenticated)
    */
   async updateWebhook(
     siteId: string,
     webhookId: string,
     update: UpdateWebhookRequest
   ): Promise<WebhookResponse> {
-    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}/${encodeURIComponent(webhookId)}`, {
+    return this.fetchAuth(`/api/webhooks/${encodeURIComponent(siteId)}/${encodeURIComponent(webhookId)}`, {
       method: 'PUT',
       body: JSON.stringify(update),
     });
   }
 
   /**
-   * Delete a webhook
+   * Delete a webhook (authenticated)
    */
   async deleteWebhook(siteId: string, webhookId: string): Promise<WebhookResponse> {
-    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}/${encodeURIComponent(webhookId)}`, {
+    return this.fetchAuth(`/api/webhooks/${encodeURIComponent(siteId)}/${encodeURIComponent(webhookId)}`, {
       method: 'DELETE',
     });
   }
 
   /**
-   * Test a webhook
+   * Test a webhook (authenticated)
    */
   async testWebhook(siteId: string, webhookId: string): Promise<WebhookTestResponse> {
-    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}/${encodeURIComponent(webhookId)}/test`, {
+    return this.fetchAuth(`/api/webhooks/${encodeURIComponent(siteId)}/${encodeURIComponent(webhookId)}/test`, {
       method: 'POST',
     });
   }
 
   /**
-   * Get webhook delivery history
+   * Get webhook delivery history (authenticated)
    */
   async getWebhookHistory(siteId: string): Promise<WebhookHistoryResponse> {
-    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}/history`);
+    return this.fetchAuth(`/api/webhooks/${encodeURIComponent(siteId)}/history`);
   }
 }
 
