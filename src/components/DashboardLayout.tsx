@@ -125,8 +125,8 @@ export function DashboardLayout({
 
   return (
     <div className="relative">
-      {/* Edit Mode Toggle */}
-      <div className="absolute top-0 right-0 z-20 flex items-center gap-2">
+      {/* Edit Mode Toggle - Bottom Right */}
+      <div className="fixed bottom-4 right-4 z-20 flex items-center gap-2">
         <AnimatePresence>
           {isEditing && (
             <motion.button

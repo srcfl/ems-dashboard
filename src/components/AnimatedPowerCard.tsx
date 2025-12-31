@@ -18,9 +18,8 @@ interface AnimatedPowerCardProps {
   sparklineData?: SparklinePoint[];
 }
 
-// Battery icon with 5 bars (ascending height like signal bars)
+// Battery icon - horizontal battery shape with fill level
 function BatteryIcon({ level, color }: { level: number; color: string }) {
-  const filledBars = Math.round(level * 5);
   const barColors = {
     green: { active: '#22C55E', inactive: 'rgba(34, 197, 94, 0.25)' },
     purple: { active: '#A855F7', inactive: 'rgba(168, 85, 247, 0.25)' },
@@ -30,24 +29,34 @@ function BatteryIcon({ level, color }: { level: number; color: string }) {
     blue: { active: '#3B82F6', inactive: 'rgba(59, 130, 246, 0.25)' },
   };
   const colorScheme = barColors[color as keyof typeof barColors] || barColors.green;
-  const barHeights = [4, 7, 10, 13, 16]; // Ascending heights
+  // Use red when battery is low
+  const fillColor = level < 0.2 ? '#EF4444' : colorScheme.active;
+  const fillWidth = Math.max(2, level * 20); // 20px max width for fill
 
   return (
-    <div className="flex items-end gap-[2px] h-5">
-      {barHeights.map((height, i) => (
+    <div className="flex items-center">
+      {/* Battery body */}
+      <div
+        className="relative w-6 h-3 rounded-sm border-2 flex items-center p-[2px]"
+        style={{ borderColor: colorScheme.active }}
+      >
+        {/* Fill level */}
         <motion.div
-          key={i}
-          initial={{ scaleY: 0 }}
-          animate={{ scaleY: 1 }}
-          transition={{ delay: i * 0.05, duration: 0.2 }}
-          className="w-[3px] rounded-sm origin-bottom"
+          initial={{ width: 0 }}
+          animate={{ width: `${fillWidth}px` }}
+          transition={{ duration: 0.3 }}
+          className="h-full rounded-[1px]"
           style={{
-            height: `${height}px`,
-            backgroundColor: i < filledBars ? colorScheme.active : colorScheme.inactive,
-            boxShadow: i < filledBars ? `0 0 6px ${colorScheme.active}` : 'none',
+            backgroundColor: fillColor,
+            boxShadow: `0 0 4px ${fillColor}`,
           }}
         />
-      ))}
+      </div>
+      {/* Battery cap */}
+      <div
+        className="w-[3px] h-1.5 rounded-r-sm"
+        style={{ backgroundColor: colorScheme.active }}
+      />
     </div>
   );
 }

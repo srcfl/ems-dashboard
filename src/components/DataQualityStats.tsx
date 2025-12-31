@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Activity, Zap, Radio } from 'lucide-react';
+import { Activity, Wifi, WifiOff, Zap, Clock } from 'lucide-react';
 
 interface DataQualityStatsProps {
   lastUpdate: Date | null;
@@ -11,30 +11,47 @@ interface DataQualityStatsProps {
   };
 }
 
+// Measure API latency by making a lightweight request
+async function measureLatency(): Promise<{ ok: boolean; latencyMs: number }> {
+  const start = performance.now();
+  try {
+    // Use the GraphQL endpoint with a minimal query
+    const response = await fetch('https://api-vnext.srcful.dev/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: '{ __typename }' }),
+    });
+    const latencyMs = Math.round(performance.now() - start);
+    return { ok: response.ok, latencyMs };
+  } catch {
+    const latencyMs = Math.round(performance.now() - start);
+    return { ok: false, latencyMs };
+  }
+}
+
 export function DataQualityStats({ lastUpdate, derCount }: DataQualityStatsProps) {
-  const [msgCount, setMsgCount] = useState(0);
-  const [msgRate, setMsgRate] = useState(0);
+  const [apiStatus, setApiStatus] = useState<'ok' | 'error' | 'checking'>('checking');
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
 
-  // Simulate message counting based on DER types
-  // PV/Battery with Zap: ~1 msg/s each
-  // Meter: ~0.1 msg/s (10s interval)
+  const checkApi = useCallback(async () => {
+    setApiStatus('checking');
+    const result = await measureLatency();
+    setApiStatus(result.ok ? 'ok' : 'error');
+    setLatencyMs(result.latencyMs);
+  }, []);
+
+  // Check API status on mount and every 30 seconds
   useEffect(() => {
-    const expectedRate = (derCount.pv + derCount.battery) * 1 + derCount.meter * 0.1;
-
-    const interval = setInterval(() => {
-      // Add some variance to make it realistic
-      const variance = 0.8 + Math.random() * 0.4;
-      const newMessages = Math.round(expectedRate * variance);
-      setMsgCount(prev => prev + newMessages);
-      setMsgRate(expectedRate * variance);
-    }, 1000);
-
+    checkApi();
+    const interval = setInterval(checkApi, 30000);
     return () => clearInterval(interval);
-  }, [derCount]);
+  }, [checkApi]);
 
   const timeSinceUpdate = lastUpdate
     ? Math.floor((Date.now() - lastUpdate.getTime()) / 1000)
     : null;
+
+  const totalDers = derCount.pv + derCount.battery + derCount.meter;
 
   return (
     <motion.div
@@ -42,23 +59,35 @@ export function DataQualityStats({ lastUpdate, derCount }: DataQualityStatsProps
       animate={{ opacity: 1 }}
       className="flex items-center gap-4 text-xs text-gray-500 font-mono"
     >
-      {/* Message Rate */}
+      {/* API Connection Status */}
       <div className="flex items-center gap-1.5">
-        <Activity className="w-3 h-3 text-green-500" />
-        <span>{msgRate.toFixed(1)} msg/s</span>
+        {apiStatus === 'ok' ? (
+          <Wifi className="w-3 h-3 text-green-500" />
+        ) : apiStatus === 'error' ? (
+          <WifiOff className="w-3 h-3 text-red-500" />
+        ) : (
+          <Activity className="w-3 h-3 text-gray-400 animate-pulse" />
+        )}
+        <span className={apiStatus === 'ok' ? 'text-green-400' : apiStatus === 'error' ? 'text-red-400' : 'text-gray-400'}>
+          API {apiStatus === 'ok' ? 'OK' : apiStatus === 'error' ? 'Error' : '...'}
+        </span>
       </div>
 
-      {/* Total Messages */}
-      <div className="flex items-center gap-1.5">
-        <Radio className="w-3 h-3 text-blue-400" />
-        <span>{msgCount.toLocaleString()} msgs</span>
-      </div>
+      {/* Latency */}
+      {latencyMs !== null && (
+        <div className="flex items-center gap-1.5">
+          <Clock className="w-3 h-3 text-blue-400" />
+          <span className={latencyMs < 200 ? 'text-green-400' : latencyMs < 500 ? 'text-amber-400' : 'text-red-400'}>
+            {latencyMs}ms
+          </span>
+        </div>
+      )}
 
-      {/* DER Status */}
+      {/* DER Count */}
       <div className="flex items-center gap-1.5">
         <Zap className="w-3 h-3 text-amber-400" />
         <span>
-          {derCount.pv}x PV @1Hz | {derCount.battery}x Bat @1Hz | {derCount.meter}x Grid @0.1Hz
+          {totalDers} DERs ({derCount.pv} PV, {derCount.battery} Bat, {derCount.meter} Grid)
         </span>
       </div>
 
