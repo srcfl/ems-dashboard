@@ -1,4 +1,5 @@
-import { useState, useCallback, ReactNode } from 'react';
+import { useState, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, RotateCcw, Unlock, ChevronUp, ChevronDown } from 'lucide-react';
 

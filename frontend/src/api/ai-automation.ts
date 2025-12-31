@@ -327,8 +327,8 @@ export async function parseAutomationIntent(userInput: string): Promise<AISELRes
 // Legacy support - convert AI response to old rule format if needed
 export function createRuleFromAI(
   aiResponse: AISELResponse,
-  siteId: string,
-  webhookUrl: string
+  _siteId: string,
+  _webhookUrl: string
 ): { selCode: string } | null {
   if (!aiResponse.success || !aiResponse.code) {
     return null;

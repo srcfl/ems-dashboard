@@ -14,7 +14,6 @@ interface SELEditorProps {
 const KEYWORDS = ['ON', 'EVERY', 'AT', 'DURING', 'BETWEEN', 'AND', 'OR', 'NOT', 'NOTIFY', 'WEBHOOK', 'LOG', 'SET', 'COOLDOWN', 'IS', 'UNUSUAL', 'COMPARED', 'TO', 'RISING', 'FALLING', 'STABLE'];
 const FUNCTIONS = ['AVG', 'MEDIAN', 'SUM', 'MIN', 'MAX', 'COUNT', 'STDDEV', 'TREND', 'PERCENTILE'];
 const METRICS = ['pv_power', 'battery_power', 'battery_soc', 'grid_power', 'grid_import', 'grid_export', 'load_power'];
-const TIME_UNITS = ['min', 'hour', 'day', 'week', 'month', 's', 'h', 'd', 'w', 'm'];
 
 // Simple tokenizer for syntax highlighting
 function tokenize(code: string): { type: string; value: string; }[] {
@@ -231,7 +230,7 @@ ON grid_export > 5kW AND battery_soc > 80%
   }
 ];
 
-export default function SELEditor({ initialCode = '', onCompile, onError, readOnly = false, siteId }: SELEditorProps) {
+export default function SELEditor({ initialCode = '', onCompile, onError, readOnly = false, siteId: _siteId }: SELEditorProps) {
   const [code, setCode] = useState(initialCode);
   const [showTemplates, setShowTemplates] = useState(false);
   const [compiling, setCompiling] = useState(false);
@@ -486,7 +485,7 @@ export default function SELEditor({ initialCode = '', onCompile, onError, readOn
           {!readOnly && (
             <button
               onClick={handleCompile}
-              disabled={compiling || (validationResult && !validationResult.valid)}
+              disabled={compiling || (validationResult !== null && !validationResult.valid)}
               className="px-4 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg hover:from-green-500 hover:to-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {compiling ? 'Compiling...' : 'Compile'}

@@ -63,7 +63,7 @@ export function PowerChart({ siteId, timeRange = '-1h', refreshTrigger }: PowerC
   };
 
   // Process response data into chart format
-  const processData = useCallback((responseData: Array<{ timestamp: string; type: string; value: number }>) => {
+  const processData = useCallback((responseData: Array<{ timestamp: string; type?: string; value: number }>) => {
     const grouped: Record<string, ChartDataPoint> = {};
 
     responseData.forEach((point) => {

@@ -15,7 +15,6 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { DataQualityStats } from './DataQualityStats';
 import { AutomationPanel } from './AutomationPanel';
 import { SharePanel } from './SharePanel';
-import { WebhookPanel } from './WebhookPanel';
 import { DashboardLayout } from './DashboardLayout';
 import type { DashboardWidget } from './DashboardLayout';
 import { DEMO_SITES } from '../api/demo-data';
@@ -238,7 +237,7 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
         defaultLayout: { x: 0, y: 17, w: 12, h: 14, minH: 8, minW: 4 },
         component: (
           <ErrorBoundary>
-            <AutomationPanel siteId={siteId} />
+            <AutomationPanel siteId={siteId} isDemoMode={isDemoMode} />
           </ErrorBoundary>
         ),
       },
@@ -285,18 +284,6 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
         ),
       });
     }
-
-    // Webhooks Panel
-    widgets.push({
-      id: 'webhooks',
-      title: 'Webhooks',
-      defaultLayout: { x: 0, y: 51, w: 12, h: 10, minH: 6, minW: 4 },
-      component: (
-        <ErrorBoundary>
-          <WebhookPanel siteId={siteId} />
-        </ErrorBoundary>
-      ),
-    });
 
     // Data Quality Stats
     widgets.push({

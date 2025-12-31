@@ -170,6 +170,8 @@ impl Parser {
             }
         } else if self.check(TokenKind::Notify) {
             actions.push(self.notify_action()?);
+        } else if self.check(TokenKind::Webhook) {
+            actions.push(self.webhook_action()?);
         }
 
         Ok(ScheduleRule {
@@ -186,22 +188,59 @@ impl Parser {
         let mut at = TimeOfDay { hour: 0, minute: 0 };
         let mut on: Option<u8> = None;
 
-        if self.check(TokenKind::Identifier) || self.check(TokenKind::Duration) {
+        // Check for interval schedule (e.g., EVERY 5min, EVERY minute, EVERY hour)
+        if self.check(TokenKind::Duration) {
+            let token = self.advance();
+            let interval_seconds = parse_duration(&token.value);
+            return Ok(Schedule::Interval(IntervalSchedule { interval_seconds }));
+        }
+
+        if self.check(TokenKind::Number) {
+            // Could be "EVERY 5 minutes" format
+            let num_token = self.advance();
+            let num: u64 = num_token.value.parse().unwrap_or(1);
+
+            if self.check(TokenKind::Identifier) {
+                let unit_token = self.advance();
+                let unit = unit_token.value.to_lowercase();
+                let interval_seconds = match unit.as_str() {
+                    "second" | "seconds" | "sec" | "secs" | "s" => num,
+                    "minute" | "minutes" | "min" | "mins" | "m" => num * 60,
+                    "hour" | "hours" | "h" | "hr" | "hrs" => num * 3600,
+                    "day" | "days" | "d" => num * 86400,
+                    _ => num * 60, // Default to minutes
+                };
+                return Ok(Schedule::Interval(IntervalSchedule { interval_seconds }));
+            }
+        }
+
+        if self.check(TokenKind::Identifier) {
             let token = self.advance();
             let text = token.value.to_lowercase();
 
-            frequency = match text.as_str() {
-                "day" | "daily" => CalendarFrequency::Daily,
-                "week" | "weekly" => CalendarFrequency::Weekly,
-                "month" | "monthly" => CalendarFrequency::Monthly,
-                "monday" => { on = Some(1); CalendarFrequency::Weekly }
-                "tuesday" => { on = Some(2); CalendarFrequency::Weekly }
-                "wednesday" => { on = Some(3); CalendarFrequency::Weekly }
-                "thursday" => { on = Some(4); CalendarFrequency::Weekly }
-                "friday" => { on = Some(5); CalendarFrequency::Weekly }
-                "saturday" => { on = Some(6); CalendarFrequency::Weekly }
-                "sunday" => { on = Some(7); CalendarFrequency::Weekly }
-                _ => CalendarFrequency::Daily,
+            // Check for interval keywords (EVERY minute, EVERY hour, etc.)
+            match text.as_str() {
+                "second" | "seconds" | "sec" | "secs" => {
+                    return Ok(Schedule::Interval(IntervalSchedule { interval_seconds: 1 }));
+                }
+                "minute" | "minutes" | "min" | "mins" => {
+                    return Ok(Schedule::Interval(IntervalSchedule { interval_seconds: 60 }));
+                }
+                "hour" | "hours" | "h" | "hr" | "hrs" => {
+                    return Ok(Schedule::Interval(IntervalSchedule { interval_seconds: 3600 }));
+                }
+                // Calendar schedules
+                "day" | "daily" => frequency = CalendarFrequency::Daily,
+                "week" | "weekly" => frequency = CalendarFrequency::Weekly,
+                "month" | "monthly" => frequency = CalendarFrequency::Monthly,
+                "monday" => { on = Some(1); frequency = CalendarFrequency::Weekly }
+                "tuesday" => { on = Some(2); frequency = CalendarFrequency::Weekly }
+                "wednesday" => { on = Some(3); frequency = CalendarFrequency::Weekly }
+                "thursday" => { on = Some(4); frequency = CalendarFrequency::Weekly }
+                "friday" => { on = Some(5); frequency = CalendarFrequency::Weekly }
+                "saturday" => { on = Some(6); frequency = CalendarFrequency::Weekly }
+                "sunday" => { on = Some(7); frequency = CalendarFrequency::Weekly }
+                _ => frequency = CalendarFrequency::Daily,
             };
         }
 

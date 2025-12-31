@@ -594,7 +594,13 @@ async fn check_schedules(
     // Check each schedule rule
     for rule in &program.rules {
         if let Rule::Schedule(schedule_rule) = rule {
-            if scheduler.should_trigger(schedule_rule, &now) {
+            // Check both calendar schedules and interval schedules
+            let should_trigger = match &schedule_rule.schedule {
+                Schedule::Interval(_) => scheduler.check_interval(schedule_rule, timestamp),
+                _ => scheduler.should_trigger(schedule_rule, &now),
+            };
+
+            if should_trigger {
                 // Record trigger
                 scheduler.record_trigger(&schedule_rule.id, timestamp);
 

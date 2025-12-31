@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Zap,
@@ -17,10 +17,12 @@ import {
   Power,
   Plus,
   Wand2,
+  Activity,
 } from 'lucide-react';
 import SELEditor from './SELEditor';
 import { parseAutomationIntent, AI_SUGGESTIONS } from '../api/ai-automation';
 import { selClient } from '../api/sel-client';
+import type { CheckSchedulesResponse } from '../api/sel-client';
 
 interface SELRule {
   id: string;
@@ -43,32 +45,94 @@ interface AutomationLog {
 
 interface AutomationPanelProps {
   siteId: string;
+  isDemoMode?: boolean;
 }
 
-const STORAGE_KEY = 'ems_sel_rules';
-const LOG_STORAGE_KEY = 'ems_automation_logs';
+// How often to check scheduled rules (in ms)
+const SCHEDULER_INTERVAL = 30000; // 30 seconds
 
-function loadRules(): SELRule[] {
+// Storage helpers - site-specific keys
+function getStorageKey(siteId: string): string {
+  return `ems_sel_rules_${siteId}`;
+}
+
+function getLogStorageKey(siteId: string): string {
+  return `ems_automation_logs_${siteId}`;
+}
+
+function loadRules(siteId: string): SELRule[] {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(getStorageKey(siteId));
     return saved ? JSON.parse(saved) : [];
   } catch {
     return [];
   }
 }
 
-function saveRules(rules: SELRule[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
+function saveRules(siteId: string, rules: SELRule[]): void {
+  localStorage.setItem(getStorageKey(siteId), JSON.stringify(rules));
 }
 
-function loadLogs(): AutomationLog[] {
+function loadLogs(siteId: string): AutomationLog[] {
   try {
-    const saved = localStorage.getItem(LOG_STORAGE_KEY);
+    const saved = localStorage.getItem(getLogStorageKey(siteId));
     return saved ? JSON.parse(saved) : [];
   } catch {
     return [];
   }
 }
+
+function saveLogs(siteId: string, logs: AutomationLog[]): void {
+  // Keep only last 100 logs
+  const trimmed = logs.slice(-100);
+  localStorage.setItem(getLogStorageKey(siteId), JSON.stringify(trimmed));
+}
+
+function addLog(siteId: string, log: Omit<AutomationLog, 'id'>): AutomationLog {
+  const newLog: AutomationLog = {
+    ...log,
+    id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  };
+  const logs = [...loadLogs(siteId), newLog];
+  saveLogs(siteId, logs);
+  return newLog;
+}
+
+// Demo rules - shown in demo mode only
+const DEMO_RULES: SELRule[] = [
+  {
+    id: 'demo_rule_1',
+    name: 'Low Battery Alert',
+    siteId: 'demo',
+    selCode: `# Alert when battery is low
+ON battery_soc < 20%
+  NOTIFY "Battery low: {battery_soc}%"
+  COOLDOWN 30min`,
+    enabled: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo_rule_2',
+    name: 'High Export Notification',
+    siteId: 'demo',
+    selCode: `# Notify when exporting significant power
+ON grid_export > 5kW AND battery_soc > 80%
+  NOTIFY "High grid export with full battery!"
+  COOLDOWN 1hour`,
+    enabled: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo_rule_3',
+    name: 'Daily Status Report',
+    siteId: 'demo',
+    selCode: `# Daily status webhook
+EVERY day AT 18:00
+  WEBHOOK "https://api.example.com/daily-report"`,
+    enabled: false,
+    createdAt: new Date().toISOString(),
+  },
+];
 
 // Default template for new rules
 const NEW_RULE_TEMPLATE = `# My new automation rule
@@ -80,7 +144,7 @@ const NEW_RULE_TEMPLATE = `# My new automation rule
 #   COOLDOWN 15min
 `;
 
-export function AutomationPanel({ siteId }: AutomationPanelProps) {
+export function AutomationPanel({ siteId, isDemoMode = false }: AutomationPanelProps) {
   const [rules, setRules] = useState<SELRule[]>([]);
   const [logs, setLogs] = useState<AutomationLog[]>([]);
   const [expandedSection, setExpandedSection] = useState<'rules' | 'logs' | null>('rules');
@@ -97,10 +161,142 @@ export function AutomationPanel({ siteId }: AutomationPanelProps) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  // Track if scheduler is running
+  const [schedulerActive, setSchedulerActive] = useState(false);
+  const [lastCheck, setLastCheck] = useState<Date | null>(null);
+  const schedulerRef = useRef<number | null>(null);
+
+  // Load rules and logs on mount
   useEffect(() => {
-    setRules(loadRules().filter(r => r.siteId === siteId));
-    setLogs(loadLogs().filter(l => rules.some(r => r.id === l.ruleId)));
-  }, [siteId]);
+    if (isDemoMode) {
+      // Demo mode: use predefined demo rules, don't persist
+      setRules(DEMO_RULES);
+      setLogs([]);
+    } else {
+      // Real mode: load from localStorage
+      setRules(loadRules(siteId));
+      setLogs(loadLogs(siteId));
+    }
+  }, [siteId, isDemoMode]);
+
+  // Sync enabled rules to SEL backend whenever rules change (only in real mode)
+  const syncRulesToBackend = useCallback(async (rulesToSync: SELRule[]) => {
+    if (isDemoMode) return; // Don't sync in demo mode
+
+    const enabledRules = rulesToSync.filter(r => r.enabled);
+    if (enabledRules.length === 0) {
+      console.log('[SEL] No enabled rules to sync');
+      return;
+    }
+
+    // Combine all enabled rules into one SEL program
+    const combinedCode = enabledRules
+      .map(r => `# Rule: ${r.name}\n${r.selCode}`)
+      .join('\n\n');
+
+    try {
+      const result = await selClient.storeRules(siteId, combinedCode);
+      if (result.success) {
+        console.log(`[SEL] Synced ${result.rules_count} rules to backend`);
+      } else {
+        console.error('[SEL] Failed to sync rules:', result.error);
+      }
+    } catch (err) {
+      console.error('[SEL] Error syncing rules:', err);
+    }
+  }, [siteId, isDemoMode]);
+
+  // Sync rules when they change (only in real mode)
+  useEffect(() => {
+    if (!isDemoMode && rules.length > 0) {
+      syncRulesToBackend(rules);
+    }
+  }, [rules, syncRulesToBackend]);
+
+  // Process scheduler response and create logs (only in real mode)
+  const processSchedulerResponse = useCallback((response: CheckSchedulesResponse) => {
+    if (isDemoMode) return; // Don't log in demo mode
+    if (!response.success) {
+      console.error('[SEL] Schedule check failed:', response.error);
+      return;
+    }
+
+    // Log triggered schedules
+    for (const triggered of response.triggered_schedules) {
+      const rule = rules.find(r => r.selCode.includes(triggered.rule_id));
+      const newLog = addLog(siteId, {
+        ruleId: triggered.rule_id,
+        ruleName: rule?.name || triggered.rule_id,
+        triggeredAt: new Date().toISOString(),
+        message: `Schedule triggered: ${triggered.schedule_type}`,
+        status: 'success',
+      });
+      setLogs(prev => [...prev, newLog]);
+    }
+
+    // Log dispatched actions
+    for (const action of response.dispatched_actions) {
+      const newLog = addLog(siteId, {
+        ruleId: 'action',
+        ruleName: action.action_type,
+        triggeredAt: new Date().toISOString(),
+        message: action.message,
+        status: action.success ? 'success' : 'error',
+      });
+      setLogs(prev => [...prev, newLog]);
+    }
+  }, [rules, siteId, isDemoMode]);
+
+  // Scheduler loop - checks scheduled rules periodically (only in real mode)
+  useEffect(() => {
+    // Don't run scheduler in demo mode
+    if (isDemoMode) {
+      setSchedulerActive(false);
+      return;
+    }
+
+    const enabledRules = rules.filter(r => r.enabled);
+
+    // Only run scheduler if there are enabled rules
+    if (enabledRules.length === 0) {
+      setSchedulerActive(false);
+      if (schedulerRef.current) {
+        clearInterval(schedulerRef.current);
+        schedulerRef.current = null;
+      }
+      return;
+    }
+
+    setSchedulerActive(true);
+
+    const checkSchedules = async () => {
+      try {
+        console.log('[SEL] Checking schedules for site:', siteId);
+        const response = await selClient.checkSchedules(siteId);
+        setLastCheck(new Date());
+        processSchedulerResponse(response);
+
+        if (response.triggered_schedules.length > 0) {
+          console.log(`[SEL] Triggered ${response.triggered_schedules.length} schedules`);
+        }
+      } catch (err) {
+        console.error('[SEL] Schedule check error:', err);
+      }
+    };
+
+    // Run immediately on mount
+    checkSchedules();
+
+    // Then run periodically
+    schedulerRef.current = window.setInterval(checkSchedules, SCHEDULER_INTERVAL);
+
+    return () => {
+      if (schedulerRef.current) {
+        clearInterval(schedulerRef.current);
+        schedulerRef.current = null;
+      }
+    };
+  }, [siteId, rules, processSchedulerResponse, isDemoMode]);
 
   // Handle opening editor for new rule
   const handleNewRule = () => {
@@ -147,12 +343,14 @@ export function AutomationPanel({ siteId }: AutomationPanelProps) {
     setSaving(true);
 
     try {
-      // Validate with backend
-      const validation = await selClient.validate(editorCode);
-      if (!validation.valid) {
-        setAiError(validation.error || 'Invalid SEL code');
-        setSaving(false);
-        return;
+      // Validate with backend (skip in demo mode for offline experience)
+      if (!isDemoMode) {
+        const validation = await selClient.validate(editorCode);
+        if (!validation.valid) {
+          setAiError(validation.error || 'Invalid SEL code');
+          setSaving(false);
+          return;
+        }
       }
 
       // Use explicit name or fall back to first comment
@@ -164,14 +362,15 @@ export function AutomationPanel({ siteId }: AutomationPanelProps) {
 
       if (editingRule && !saveAsNew) {
         // Update existing rule
-        const allRules = loadRules();
-        const updated = allRules.map(r =>
+        const updated = rules.map(r =>
           r.id === editingRule.id
             ? { ...r, selCode: editorCode, name: finalName, updatedAt: new Date().toISOString() }
             : r
         );
-        saveRules(updated);
-        setRules(updated.filter(r => r.siteId === siteId));
+        if (!isDemoMode) {
+          saveRules(siteId, updated);
+        }
+        setRules(updated);
       } else {
         // Create new rule (or save as new copy)
         const newRule: SELRule = {
@@ -182,9 +381,11 @@ export function AutomationPanel({ siteId }: AutomationPanelProps) {
           enabled: true,
           createdAt: new Date().toISOString(),
         };
-        const allRules = [...loadRules(), newRule];
-        saveRules(allRules);
-        setRules(allRules.filter(r => r.siteId === siteId));
+        const updated = [...rules, newRule];
+        if (!isDemoMode) {
+          saveRules(siteId, updated);
+        }
+        setRules(updated);
       }
 
       // Close editor
@@ -211,19 +412,22 @@ export function AutomationPanel({ siteId }: AutomationPanelProps) {
 
   // Handle toggling a rule
   const handleToggleRule = (ruleId: string) => {
-    const allRules = loadRules();
-    const updated = allRules.map(r =>
+    const updated = rules.map(r =>
       r.id === ruleId ? { ...r, enabled: !r.enabled } : r
     );
-    saveRules(updated);
-    setRules(updated.filter(r => r.siteId === siteId));
+    if (!isDemoMode) {
+      saveRules(siteId, updated);
+    }
+    setRules(updated);
   };
 
   // Handle deleting a rule
   const handleDeleteRule = (ruleId: string) => {
-    const allRules = loadRules().filter(r => r.id !== ruleId);
-    saveRules(allRules);
-    setRules(allRules.filter(r => r.siteId === siteId));
+    const updated = rules.filter(r => r.id !== ruleId);
+    if (!isDemoMode) {
+      saveRules(siteId, updated);
+    }
+    setRules(updated);
   };
 
   // Handle closing editor
@@ -254,6 +458,20 @@ export function AutomationPanel({ siteId }: AutomationPanelProps) {
               {rules.filter(r => r.enabled).length} active rules
             </p>
           </div>
+          {/* Scheduler status indicator */}
+          {schedulerActive && (
+            <div className="flex items-center gap-2 ml-4 px-2 py-1 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <Activity className="w-3 h-3 text-green-400 animate-pulse" />
+              <span className="text-green-400 text-xs">
+                Engine running
+                {lastCheck && (
+                  <span className="text-green-400/60 ml-1">
+                    (checked {Math.round((Date.now() - lastCheck.getTime()) / 1000)}s ago)
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
         </div>
         {!showEditor && (
           <motion.button
