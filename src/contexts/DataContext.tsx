@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useSourcefulAuth } from '../hooks/useSourcefulAuth';
 import type { AuthCredentials } from '../api/sourceful-auth';
 
@@ -34,7 +34,6 @@ export function DataProvider({ children }: DataProviderProps) {
     credentials,
     isGenerating,
     error,
-    ready,
     hasCredentials,
     generateCredentials,
     clearAuth,
