@@ -90,6 +90,74 @@ export interface MetricsInput {
   load_power?: number;
 }
 
+// Webhook types
+export interface WebhookConfig {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  headers: Record<string, string>;
+  auth_type: 'none' | 'bearer' | 'basic' | 'api_key';
+  auth_token?: string;
+  events: string[];
+  last_success?: number;
+  last_error?: string;
+  failure_count: number;
+}
+
+export interface WebhookDelivery {
+  webhook_id: string;
+  timestamp: number;
+  url: string;
+  request_body: string;
+  response_status?: number;
+  response_body?: string;
+  success: boolean;
+  error?: string;
+  duration_ms: number;
+}
+
+export interface WebhooksListResponse {
+  webhooks: WebhookConfig[];
+}
+
+export interface WebhookResponse {
+  success: boolean;
+  webhook?: WebhookConfig;
+  error?: string;
+}
+
+export interface WebhookTestResponse {
+  success: boolean;
+  status_code?: number;
+  message: string;
+  details?: string;
+}
+
+export interface WebhookHistoryResponse {
+  deliveries: WebhookDelivery[];
+}
+
+export interface CreateWebhookRequest {
+  name: string;
+  url: string;
+  enabled?: boolean;
+  auth_type?: 'none' | 'bearer' | 'basic' | 'api_key';
+  auth_token?: string;
+  events?: string[];
+  headers?: Record<string, string>;
+}
+
+export interface UpdateWebhookRequest {
+  name?: string;
+  url?: string;
+  enabled?: boolean;
+  auth_type?: 'none' | 'bearer' | 'basic' | 'api_key';
+  auth_token?: string;
+  events?: string[];
+  headers?: Record<string, string>;
+}
+
 class SELClient {
   private baseUrl: string;
 
@@ -180,6 +248,66 @@ class SELClient {
       }),
     });
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WEBHOOK ENDPOINTS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * List webhooks for a site
+   */
+  async listWebhooks(siteId: string): Promise<WebhooksListResponse> {
+    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}`);
+  }
+
+  /**
+   * Create a new webhook
+   */
+  async createWebhook(siteId: string, webhook: CreateWebhookRequest): Promise<WebhookResponse> {
+    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}`, {
+      method: 'POST',
+      body: JSON.stringify(webhook),
+    });
+  }
+
+  /**
+   * Update a webhook
+   */
+  async updateWebhook(
+    siteId: string,
+    webhookId: string,
+    update: UpdateWebhookRequest
+  ): Promise<WebhookResponse> {
+    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}/${encodeURIComponent(webhookId)}`, {
+      method: 'PUT',
+      body: JSON.stringify(update),
+    });
+  }
+
+  /**
+   * Delete a webhook
+   */
+  async deleteWebhook(siteId: string, webhookId: string): Promise<WebhookResponse> {
+    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}/${encodeURIComponent(webhookId)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Test a webhook
+   */
+  async testWebhook(siteId: string, webhookId: string): Promise<WebhookTestResponse> {
+    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}/${encodeURIComponent(webhookId)}/test`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Get webhook delivery history
+   */
+  async getWebhookHistory(siteId: string): Promise<WebhookHistoryResponse> {
+    return this.fetch(`/api/webhooks/${encodeURIComponent(siteId)}/history`);
+  }
 }
 
 // Singleton instance
@@ -190,3 +318,18 @@ export async function isBackendAvailable(): Promise<boolean> {
   const health = await selClient.health();
   return health.status === 'ok';
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONVENIENCE EXPORTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const listWebhooks = (siteId: string) => selClient.listWebhooks(siteId);
+export const createWebhook = (siteId: string, webhook: CreateWebhookRequest) =>
+  selClient.createWebhook(siteId, webhook);
+export const updateWebhook = (siteId: string, webhookId: string, update: UpdateWebhookRequest) =>
+  selClient.updateWebhook(siteId, webhookId, update);
+export const deleteWebhook = (siteId: string, webhookId: string) =>
+  selClient.deleteWebhook(siteId, webhookId);
+export const testWebhook = (siteId: string, webhookId: string) =>
+  selClient.testWebhook(siteId, webhookId);
+export const getWebhookHistory = (siteId: string) => selClient.getWebhookHistory(siteId);

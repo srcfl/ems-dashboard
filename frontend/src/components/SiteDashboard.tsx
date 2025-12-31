@@ -15,6 +15,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { DataQualityStats } from './DataQualityStats';
 import { AutomationPanel } from './AutomationPanel';
 import { SharePanel } from './SharePanel';
+import { WebhookPanel } from './WebhookPanel';
 import { DashboardLayout } from './DashboardLayout';
 import type { DashboardWidget } from './DashboardLayout';
 import { DEMO_SITES } from '../api/demo-data';
@@ -285,11 +286,23 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
       });
     }
 
+    // Webhooks Panel
+    widgets.push({
+      id: 'webhooks',
+      title: 'Webhooks',
+      defaultLayout: { x: 0, y: 51, w: 12, h: 10, minH: 6, minW: 4 },
+      component: (
+        <ErrorBoundary>
+          <WebhookPanel siteId={siteId} />
+        </ErrorBoundary>
+      ),
+    });
+
     // Data Quality Stats
     widgets.push({
       id: 'data-quality',
       title: 'Data Quality',
-      defaultLayout: { x: 0, y: 51, w: 12, h: 3, minH: 2, minW: 4 },
+      defaultLayout: { x: 0, y: 61, w: 12, h: 3, minH: 2, minW: 4 },
       component: (
         <div className="pt-2">
           <DataQualityStats

@@ -1,7 +1,7 @@
 [package]
 name = "sel-lang"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 authors = ["Sourceful Energy <dev@sourceful.energy>"]
 description = "Sourceful Energy Language - A DSL for energy automation rules"
 license = "MIT"
@@ -21,7 +21,7 @@ required-features = ["server"]
 [features]
 default = []
 wasm = ["dep:wasm-bindgen"]
-server = ["dep:axum", "dep:tokio", "dep:tower-http", "dep:tracing", "dep:tracing-subscriber"]
+server = ["dep:axum", "dep:tokio", "dep:tower-http", "dep:tracing", "dep:tracing-subscriber", "dep:reqwest"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -35,6 +35,7 @@ tokio = { version = "1", features = ["full"], optional = true }
 tower-http = { version = "0.6", features = ["cors", "trace"], optional = true }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+reqwest = { version = "0.12", features = ["json"], optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.4"

@@ -38,7 +38,13 @@ pub use parser::Parser;
 pub use compiler::Compiler;
 pub use runtime::{Runtime, MetricValues, MetricHistory, CooldownState, RuleResult, ActionResult};
 pub use scheduler::{Scheduler, ScheduleState, DateTime};
-pub use dispatcher::{Dispatcher, DispatcherBuilder, DispatcherConfig, DispatchResult};
+pub use dispatcher::{
+    Dispatcher, DispatcherBuilder, DispatcherConfig, DispatchResult,
+    WebhookConfig, WebhookAuthType, WebhookEvent, WebhookDelivery,
+};
+
+#[cfg(feature = "server")]
+pub use dispatcher::async_dispatcher::{AsyncDispatcher, test_webhook};
 
 /// Parse SEL source code into an AST
 pub fn parse(source: &str) -> Result<Program, SELError> {
