@@ -51,19 +51,6 @@ export function DataProvider({ children }: DataProviderProps) {
     localStorage.setItem('demo_mode', String(demo));
   };
 
-  // Auto-generate credentials when authenticated but no credentials exist
-  // This triggers the wallet signing automatically after Privy login
-  useEffect(() => {
-    if (ready && !hasCredentials && !isGenerating && !isDemoMode) {
-      console.log('🔐 Auto-generating Sourceful API credentials...');
-      // Small delay to let the UI settle after login
-      const timer = setTimeout(() => {
-        generateCredentials();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [ready, hasCredentials, isGenerating, isDemoMode, generateCredentials]);
-
   // In demo mode, we're always ready
   const needsCredentials = !isDemoMode && !hasCredentials && !isGenerating;
   const isReady = isDemoMode || hasCredentials;
