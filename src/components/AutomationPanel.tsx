@@ -23,6 +23,7 @@ import SELEditor from './SELEditor';
 import { parseAutomationIntent, AI_SUGGESTIONS } from '../api/ai-automation';
 import { selClient } from '../api/sel-client';
 import type { CheckSchedulesResponse } from '../api/sel-client';
+import { useSELAuth } from '../hooks/useSELAuth';
 
 interface SELRule {
   id: string;
@@ -149,6 +150,9 @@ export function AutomationPanel({ siteId, isDemoMode = false }: AutomationPanelP
   const [logs, setLogs] = useState<AutomationLog[]>([]);
   const [expandedSection, setExpandedSection] = useState<'rules' | 'logs' | null>('rules');
 
+  // SEL backend auth - session generated on-demand when making changes
+  const { hasSession, generateSession, canSign } = useSELAuth();
+
   // Editor state
   const [showEditor, setShowEditor] = useState(false);
   const [editorCode, setEditorCode] = useState('');
@@ -165,6 +169,15 @@ export function AutomationPanel({ siteId, isDemoMode = false }: AutomationPanelP
   const [schedulerActive, setSchedulerActive] = useState(false);
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
   const schedulerRef = useRef<number | null>(null);
+
+  // Helper to ensure we have a valid session before making authenticated calls
+  const ensureSession = useCallback(async (): Promise<boolean> => {
+    if (hasSession) return true;
+    if (!canSign) return false;
+
+    const session = await generateSession();
+    return session !== null;
+  }, [hasSession, canSign, generateSession]);
 
   // Load rules and logs on mount
   useEffect(() => {
@@ -189,6 +202,13 @@ export function AutomationPanel({ siteId, isDemoMode = false }: AutomationPanelP
       return;
     }
 
+    // Ensure we have a valid session before syncing
+    const sessionOk = await ensureSession();
+    if (!sessionOk) {
+      console.log('[SEL] No session available, skipping sync');
+      return;
+    }
+
     // Combine all enabled rules into one SEL program
     const combinedCode = enabledRules
       .map(r => `# Rule: ${r.name}\n${r.selCode}`)
@@ -204,7 +224,7 @@ export function AutomationPanel({ siteId, isDemoMode = false }: AutomationPanelP
     } catch (err) {
       console.error('[SEL] Error syncing rules:', err);
     }
-  }, [siteId, isDemoMode]);
+  }, [siteId, isDemoMode, ensureSession]);
 
   // Sync rules when they change (only in real mode)
   useEffect(() => {
@@ -248,10 +268,15 @@ export function AutomationPanel({ siteId, isDemoMode = false }: AutomationPanelP
   }, [rules, siteId, isDemoMode]);
 
   // Scheduler loop - checks scheduled rules periodically (only in real mode)
+  // Only runs when we have a valid session (after user has signed for changes)
   useEffect(() => {
-    // Don't run scheduler in demo mode
-    if (isDemoMode) {
+    // Don't run scheduler in demo mode or without session
+    if (isDemoMode || !hasSession) {
       setSchedulerActive(false);
+      if (schedulerRef.current) {
+        clearInterval(schedulerRef.current);
+        schedulerRef.current = null;
+      }
       return;
     }
 
@@ -296,7 +321,7 @@ export function AutomationPanel({ siteId, isDemoMode = false }: AutomationPanelP
         schedulerRef.current = null;
       }
     };
-  }, [siteId, rules, processSchedulerResponse, isDemoMode]);
+  }, [siteId, rules, processSchedulerResponse, isDemoMode, hasSession]);
 
   // Handle opening editor for new rule
   const handleNewRule = () => {

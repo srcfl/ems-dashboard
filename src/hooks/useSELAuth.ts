@@ -142,19 +142,15 @@ export function useSELAuth() {
     }
   }, [session]);
 
-  // Auto-generate session when authenticated but no session exists
-  useEffect(() => {
-    if (authenticated && wallets.length > 0 && !session && !isGenerating) {
-      // Small delay to let UI settle
-      const timer = setTimeout(() => {
-        generateSession();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [authenticated, wallets, session, isGenerating, generateSession]);
+  // NOTE: No auto-generate - session is created on-demand when user
+  // tries to make changes (add/edit automation). This avoids unnecessary
+  // signing prompts just for viewing data.
 
   return {
+    // isReady means we CAN make authenticated requests (have valid session)
     isReady: authenticated && wallets.length > 0 && !!session,
+    // canSign means we're authenticated and could sign if needed
+    canSign: authenticated && wallets.length > 0,
     walletAddress: wallets.length > 0 ? wallets[0].address : null,
     hasSession: !!session,
     isGenerating,
