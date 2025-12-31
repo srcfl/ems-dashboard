@@ -15,7 +15,15 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { DataQualityStats } from './DataQualityStats';
 import { AutomationPanel } from './AutomationPanel';
 import { SharePanel } from './SharePanel';
-import { DEMO_SITE_NAME } from '../api/demo-data';
+import { DashboardLayout } from './DashboardLayout';
+import type { DashboardWidget } from './DashboardLayout';
+import { DEMO_SITES } from '../api/demo-data';
+
+// Get demo site name by ID
+const getDemoSiteName = (siteId: string): string => {
+  const site = DEMO_SITES.find(s => s.id === siteId);
+  return site?.name || 'Demo Site';
+};
 
 interface SiteDashboardProps {
   siteId: string;
@@ -41,6 +49,7 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [timeRange, setTimeRange] = useState('-1h');
+  const [chartRefreshTrigger, setChartRefreshTrigger] = useState(0);
   const [sparklineData, setSparklineData] = useState<SparklineData>({
     load: [],
     pv: [],
@@ -131,6 +140,7 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
     const interval = setInterval(() => {
       fetchSite();
       fetchSparklineData();
+      setChartRefreshTrigger(prev => prev + 1); // Trigger incremental chart update
     }, 10000);
     return () => clearInterval(interval);
   }, [autoRefresh, fetchSite, fetchSparklineData]);
@@ -149,6 +159,153 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
       { batteries: [] as DER[], pvs: [] as DER[], meters: [] as DER[], evChargers: [] as DER[] }
     );
   }, [site]);
+
+  // Build dashboard widgets
+  const dashboardWidgets = useMemo((): DashboardWidget[] => {
+    if (!site) return [];
+
+    // Determine grid color based on import/export
+    const gridColor = site.total_grid_power_w > 0 ? 'red' : 'green';
+    const gridPrefix = site.total_grid_power_w > 0 ? 'Import' : site.total_grid_power_w < 0 ? 'Export' : '';
+
+    // Determine battery color
+    const batteryColor = site.total_battery_power_w > 0 ? 'green' : site.total_battery_power_w < 0 ? 'purple' : 'purple';
+    const batteryPrefix = site.total_battery_power_w > 0 ? '+' : '';
+
+    const widgets: DashboardWidget[] = [
+      // Power Cards Row
+      {
+        id: 'power-cards',
+        title: 'Power Overview',
+        defaultLayout: { x: 0, y: 0, w: 12, h: 5, minH: 4, minW: 6 },
+        component: (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 h-full">
+            <AnimatedPowerCard
+              label="Load"
+              value={site.load_w}
+              color="orange"
+              sparklineData={sparklineData.load}
+            />
+            <AnimatedPowerCard
+              label="Solar"
+              value={site.total_pv_power_w}
+              color="yellow"
+              sparklineData={sparklineData.pv}
+            />
+            <AnimatedPowerCard
+              label="Battery"
+              value={Math.abs(site.total_battery_power_w)}
+              color={batteryColor}
+              prefix={batteryPrefix}
+              showBatteryIcon={site.battery_soc_avg !== null}
+              batteryLevel={site.battery_soc_avg || 0}
+              sparklineData={sparklineData.battery}
+            />
+            <AnimatedPowerCard
+              label="Grid"
+              value={Math.abs(site.total_grid_power_w)}
+              color={gridColor}
+              prefix={gridPrefix}
+              sparklineData={sparklineData.grid}
+            />
+          </div>
+        ),
+      },
+      // Power Chart
+      {
+        id: 'power-chart',
+        title: 'Power Chart',
+        defaultLayout: { x: 0, y: 5, w: 12, h: 12, minH: 8, minW: 6 },
+        component: (
+          <ErrorBoundary
+            fallback={
+              <div className="bg-gray-800/50 rounded-xl p-6 h-full flex items-center justify-center border border-gray-700/50 backdrop-blur-sm">
+                <div className="text-red-400">Chart failed to load</div>
+              </div>
+            }
+          >
+            <div className="h-full">
+              <PowerChart siteId={siteId} timeRange={timeRange} refreshTrigger={chartRefreshTrigger} />
+            </div>
+          </ErrorBoundary>
+        ),
+      },
+      // Automations Panel
+      {
+        id: 'automations',
+        title: 'Automations',
+        defaultLayout: { x: 0, y: 17, w: 12, h: 14, minH: 8, minW: 4 },
+        component: (
+          <ErrorBoundary>
+            <AutomationPanel siteId={siteId} />
+          </ErrorBoundary>
+        ),
+      },
+    ];
+
+    // EMS Panel (only if not demo mode)
+    if (!isDemoMode) {
+      widgets.push({
+        id: 'ems-panel',
+        title: 'EMS Optimization',
+        defaultLayout: { x: 0, y: 31, w: 12, h: 10, minH: 6, minW: 4 },
+        component: (
+          <ErrorBoundary>
+            <EMSPanel siteId={siteId} />
+          </ErrorBoundary>
+        ),
+      });
+    }
+
+    // DER Cards (if any exist)
+    const hasDers = categorizedDers?.batteries.length || categorizedDers?.pvs.length ||
+                    categorizedDers?.meters.length || categorizedDers?.evChargers.length;
+
+    if (hasDers) {
+      widgets.push({
+        id: 'der-cards',
+        title: 'Device Details',
+        defaultLayout: { x: 0, y: 41, w: 12, h: 10, minH: 6, minW: 4 },
+        component: (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-full overflow-auto">
+            {categorizedDers?.batteries.map((battery, idx) => (
+              <BatteryCard key={`battery-${idx}`} battery={battery} />
+            ))}
+            {categorizedDers?.pvs.map((pv, idx) => (
+              <PVCard key={`pv-${idx}`} pv={pv} />
+            ))}
+            {categorizedDers?.meters.map((meter, idx) => (
+              <MeterCard key={`meter-${idx}`} meter={meter} />
+            ))}
+            {categorizedDers?.evChargers.map((charger, idx) => (
+              <EVChargerCard key={`ev-${idx}`} charger={charger} />
+            ))}
+          </div>
+        ),
+      });
+    }
+
+    // Data Quality Stats
+    widgets.push({
+      id: 'data-quality',
+      title: 'Data Quality',
+      defaultLayout: { x: 0, y: 51, w: 12, h: 3, minH: 2, minW: 4 },
+      component: (
+        <div className="pt-2">
+          <DataQualityStats
+            lastUpdate={lastUpdate}
+            derCount={{
+              pv: categorizedDers?.pvs.length || 0,
+              battery: categorizedDers?.batteries.length || 0,
+              meter: categorizedDers?.meters.length || 0,
+            }}
+          />
+        </div>
+      ),
+    });
+
+    return widgets;
+  }, [site, sparklineData, siteId, timeRange, isDemoMode, categorizedDers, lastUpdate]);
 
   if (loading && !site) {
     return (
@@ -184,14 +341,6 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
 
   if (!site) return null;
 
-  // Determine grid color based on import/export
-  const gridColor = site.total_grid_power_w > 0 ? 'red' : 'green';
-  const gridPrefix = site.total_grid_power_w > 0 ? 'Import' : site.total_grid_power_w < 0 ? 'Export' : '';
-
-  // Determine battery color
-  const batteryColor = site.total_battery_power_w > 0 ? 'green' : site.total_battery_power_w < 0 ? 'purple' : 'purple';
-  const batteryPrefix = site.total_battery_power_w > 0 ? '+' : '';
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -202,7 +351,7 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
       >
         <div>
           <h2 className="text-xl font-bold text-white mb-1">
-            {isDemoMode ? DEMO_SITE_NAME : 'Site Dashboard'}
+            {isDemoMode ? getDemoSiteName(siteId) : 'Site Dashboard'}
           </h2>
           {lastUpdate && (
             <p className="text-gray-500 text-sm">
@@ -241,112 +390,19 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
           </motion.button>
           <SharePanel
             siteId={siteId}
-            siteName={isDemoMode ? DEMO_SITE_NAME : 'Site Dashboard'}
+            siteName={isDemoMode ? getDemoSiteName(siteId) : 'Site Dashboard'}
             timeRange={timeRange}
           />
         </div>
       </motion.div>
 
-      {/* Animated Power Cards with Sparklines */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ staggerChildren: 0.1 }}
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
-      >
-        <AnimatedPowerCard
-          label="Load"
-          value={site.load_w}
-          color="orange"
-          sparklineData={sparklineData.load}
-        />
-        <AnimatedPowerCard
-          label="Solar"
-          value={site.total_pv_power_w}
-          color="yellow"
-          sparklineData={sparklineData.pv}
-        />
-        <AnimatedPowerCard
-          label="Battery"
-          value={Math.abs(site.total_battery_power_w)}
-          color={batteryColor}
-          prefix={batteryPrefix}
-          showBatteryIcon={site.battery_soc_avg !== null}
-          batteryLevel={site.battery_soc_avg || 0}
-          sparklineData={sparklineData.battery}
-        />
-        <AnimatedPowerCard
-          label="Grid"
-          value={Math.abs(site.total_grid_power_w)}
-          color={gridColor}
-          prefix={gridPrefix}
-          sparklineData={sparklineData.grid}
-        />
-      </motion.div>
-
-      {/* Power Chart */}
-      <ErrorBoundary
-        fallback={
-          <div className="bg-gray-800/50 rounded-xl p-6 h-80 flex items-center justify-center border border-gray-700/50 backdrop-blur-sm">
-            <div className="text-red-400">Chart failed to load</div>
-          </div>
-        }
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <PowerChart siteId={siteId} timeRange={timeRange} />
-        </motion.div>
-      </ErrorBoundary>
-
-      {/* EMS Panel - only show if not demo mode */}
-      {!isDemoMode && (
-        <ErrorBoundary>
-          <EMSPanel siteId={siteId} />
-        </ErrorBoundary>
-      )}
-
-      {/* Automations Panel */}
-      <ErrorBoundary>
-        <AutomationPanel siteId={siteId} />
-      </ErrorBoundary>
-
-      {/* DER Cards */}
-      {(categorizedDers?.batteries.length || categorizedDers?.pvs.length || categorizedDers?.meters.length || categorizedDers?.evChargers.length) ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          {categorizedDers?.batteries.map((battery, idx) => (
-            <BatteryCard key={`battery-${idx}`} battery={battery} />
-          ))}
-          {categorizedDers?.pvs.map((pv, idx) => (
-            <PVCard key={`pv-${idx}`} pv={pv} />
-          ))}
-          {categorizedDers?.meters.map((meter, idx) => (
-            <MeterCard key={`meter-${idx}`} meter={meter} />
-          ))}
-          {categorizedDers?.evChargers.map((charger, idx) => (
-            <EVChargerCard key={`ev-${idx}`} charger={charger} />
-          ))}
-        </motion.div>
-      ) : null}
-
-      {/* Data Quality Stats Footer */}
-      <div className="mt-8 pt-4 border-t border-gray-800">
-        <DataQualityStats
-          lastUpdate={lastUpdate}
-          derCount={{
-            pv: categorizedDers?.pvs.length || 0,
-            battery: categorizedDers?.batteries.length || 0,
-            meter: categorizedDers?.meters.length || 0,
-          }}
-        />
-      </div>
+      {/* Customizable Dashboard */}
+      <DashboardLayout
+        widgets={dashboardWidgets}
+        storageKey={`site_${siteId}`}
+        columns={12}
+        rowHeight={30}
+      />
     </div>
   );
 }

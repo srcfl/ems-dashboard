@@ -6,7 +6,7 @@ import { AuthButton } from './components/AuthButton';
 import { UserSites } from './components/UserSites';
 import { usePrivyEnv } from './auth/PrivyProvider';
 import { useDataContext } from './contexts/DataContext';
-import { DEMO_SITE_ID, DEMO_SITE_NAME } from './api/demo-data';
+import { DEMO_SITES } from './api/demo-data';
 
 function App() {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -14,10 +14,10 @@ function App() {
   const { env, switchEnv } = usePrivyEnv();
   const { isDemoMode, setDemoMode } = useDataContext();
 
-  // Auto-select demo site when in demo mode
+  // Auto-select first demo site when in demo mode
   useEffect(() => {
     if (isDemoMode && !selectedSite) {
-      setSelectedSite(DEMO_SITE_ID);
+      setSelectedSite(DEMO_SITES[0].id);
     }
   }, [isDemoMode, selectedSite]);
 
@@ -31,7 +31,7 @@ function App() {
 
   const handleDemoMode = () => {
     setDemoMode(true);
-    setSelectedSite(DEMO_SITE_ID);
+    setSelectedSite(DEMO_SITES[0].id);
   };
 
   const handleExitDemo = () => {
@@ -168,9 +168,21 @@ function App() {
         {/* Site Selector */}
         {isDemoMode ? (
           <div className="mb-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 rounded-lg border border-gray-700">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span className="text-white font-medium">{DEMO_SITE_NAME}</span>
+            <div className="flex flex-wrap gap-2">
+              {DEMO_SITES.map((site) => (
+                <button
+                  key={site.id}
+                  onClick={() => setSelectedSite(site.id)}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                    selectedSite === site.id
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'
+                  }`}
+                >
+                  <Zap className="w-4 h-4" />
+                  <span className="font-medium">{site.name}</span>
+                </button>
+              ))}
             </div>
           </div>
         ) : (

@@ -4,11 +4,15 @@ import { useWallets } from '@privy-io/react-auth/solana';
 import { Home, Loader2, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { useDataContext } from '../contexts/DataContext';
 import { getSitesForWallet } from '../api/data-service';
+import { DEMO_SITES } from '../api/demo-data';
 
-// Local storage for site names
+// Local storage for site names (with demo site fallbacks)
 function getSiteName(siteId: string): string | null {
   const names = JSON.parse(localStorage.getItem('site_names') || '{}');
-  return names[siteId] || null;
+  if (names[siteId]) return names[siteId];
+  // Fall back to demo site names
+  const demoSite = DEMO_SITES.find(s => s.id === siteId);
+  return demoSite?.name || null;
 }
 
 function setSiteName(siteId: string, name: string) {

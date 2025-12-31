@@ -1,0 +1,44 @@
+[package]
+name = "sel-lang"
+version = "0.1.0"
+edition = "2024"
+authors = ["Sourceful Energy <dev@sourceful.energy>"]
+description = "Sourceful Energy Language - A DSL for energy automation rules"
+license = "MIT"
+repository = "https://github.com/sourceful-energy/sel-lang"
+keywords = ["energy", "automation", "dsl", "parser", "rules-engine"]
+categories = ["parser-implementations", "wasm"]
+readme = "README.md"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "sel-server"
+path = "src/bin/server.rs"
+required-features = ["server"]
+
+[features]
+default = []
+wasm = ["dep:wasm-bindgen"]
+server = ["dep:axum", "dep:tokio", "dep:tower-http", "dep:tracing", "dep:tracing-subscriber"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+wasm-bindgen = { version = "0.2", optional = true }
+
+# Server dependencies (optional)
+axum = { version = "0.8", optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
+tower-http = { version = "0.6", features = ["cors", "trace"], optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+
+[dev-dependencies]
+pretty_assertions = "1.4"
+
+[profile.release]
+opt-level = "s"
+lto = true

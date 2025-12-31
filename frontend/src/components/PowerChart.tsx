@@ -8,6 +8,7 @@ import { useDataContext } from '../contexts/DataContext';
 interface PowerChartProps {
   siteId: string;
   timeRange?: string;
+  refreshTrigger?: number; // Incremented to trigger incremental refresh
 }
 
 interface ChartDataPoint {
@@ -33,12 +34,14 @@ const LABELS: Record<string, string> = {
   grid: 'Grid',
 };
 
-export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
+export function PowerChart({ siteId, timeRange = '-1h', refreshTrigger }: PowerChartProps) {
   const { credentials } = useDataContext();
   const [data, setData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<ReactECharts>(null);
+  const lastFetchRef = useRef<Date | null>(null);
+  const isInitialLoadRef = useRef(true);
 
   const getResolution = (range: string): string => {
     if (range.includes('7d')) return '1h';
@@ -47,9 +50,45 @@ export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
     return '1m';
   };
 
+  // Parse time range to milliseconds
+  const parseTimeRange = (range: string): number => {
+    const match = range.match(/^-(\d+)([hdm])$/);
+    if (!match) return 60 * 60 * 1000; // Default 1 hour
+    const value = parseInt(match[1]);
+    const unit = match[2];
+    if (unit === 'h') return value * 60 * 60 * 1000;
+    if (unit === 'd') return value * 24 * 60 * 60 * 1000;
+    if (unit === 'm') return value * 60 * 1000;
+    return 60 * 60 * 1000;
+  };
+
+  // Process response data into chart format
+  const processData = useCallback((responseData: Array<{ timestamp: string; type: string; value: number }>) => {
+    const grouped: Record<string, ChartDataPoint> = {};
+
+    responseData.forEach((point) => {
+      const time = new Date(point.timestamp);
+      const key = time.toISOString();
+
+      if (!grouped[key]) {
+        grouped[key] = { time };
+      }
+
+      const derType = point.type || 'unknown';
+      const current = (grouped[key][derType as keyof ChartDataPoint] as number) || 0;
+      (grouped[key] as Record<string, unknown>)[derType] = current + (point.value || 0);
+    });
+
+    return Object.values(grouped).sort((a, b) => a.time.getTime() - b.time.getTime());
+  }, []);
+
+  // Initial load - fetch all data
   useEffect(() => {
     if (!credentials) return;
 
+    // Reset on site or time range change
+    isInitialLoadRef.current = true;
+    lastFetchRef.current = null;
     setLoading(true);
     setError(null);
 
@@ -57,33 +96,61 @@ export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
 
     getTimeSeries(siteId, credentials, { start: timeRange, aggregate: resolution })
       .then((response) => {
-        const grouped: Record<string, ChartDataPoint> = {};
-
-        response.data.forEach((point) => {
-          const time = new Date(point.timestamp);
-          const key = time.toISOString();
-
-          if (!grouped[key]) {
-            grouped[key] = { time };
-          }
-
-          const derType = point.type || 'unknown';
-          const current = (grouped[key][derType as keyof ChartDataPoint] as number) || 0;
-          (grouped[key] as Record<string, unknown>)[derType] = current + (point.value || 0);
-        });
-
-        const sortedData = Object.values(grouped).sort(
-          (a, b) => a.time.getTime() - b.time.getTime()
-        );
-
+        const sortedData = processData(response.data);
         setData(sortedData);
+        lastFetchRef.current = sortedData.length > 0 ? sortedData[sortedData.length - 1].time : new Date();
+        isInitialLoadRef.current = false;
         setLoading(false);
       })
       .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
-  }, [siteId, timeRange, credentials]);
+  }, [siteId, timeRange, credentials, processData]);
+
+  // Incremental refresh - only fetch new data points
+  useEffect(() => {
+    if (!credentials || !refreshTrigger || isInitialLoadRef.current || !lastFetchRef.current) return;
+
+    const resolution = getResolution(timeRange);
+    const timeWindowMs = parseTimeRange(timeRange);
+
+    // Fetch only data from the last fetch time
+    const lastTime = lastFetchRef.current;
+    const minutesSinceLast = Math.ceil((Date.now() - lastTime.getTime()) / 60000);
+    const incrementalRange = `-${Math.max(minutesSinceLast + 1, 2)}m`; // At least 2 minutes
+
+    getTimeSeries(siteId, credentials, { start: incrementalRange, aggregate: resolution })
+      .then((response) => {
+        const newPoints = processData(response.data);
+
+        if (newPoints.length === 0) return;
+
+        setData(prevData => {
+          // Merge new points with existing data
+          const existingTimes = new Set(prevData.map(d => d.time.getTime()));
+          const uniqueNewPoints = newPoints.filter(p => !existingTimes.has(p.time.getTime()));
+
+          if (uniqueNewPoints.length === 0) return prevData;
+
+          // Combine and sort
+          const combined = [...prevData, ...uniqueNewPoints].sort(
+            (a, b) => a.time.getTime() - b.time.getTime()
+          );
+
+          // Trim old data to keep within time window
+          const cutoffTime = Date.now() - timeWindowMs;
+          const trimmed = combined.filter(d => d.time.getTime() >= cutoffTime);
+
+          lastFetchRef.current = trimmed.length > 0 ? trimmed[trimmed.length - 1].time : new Date();
+
+          return trimmed;
+        });
+      })
+      .catch((err) => {
+        console.warn('Incremental refresh failed:', err.message);
+      });
+  }, [refreshTrigger, siteId, timeRange, credentials, processData]);
 
   const resetZoom = useCallback(() => {
     const chart = chartRef.current?.getEchartsInstance();
@@ -134,7 +201,10 @@ export function PowerChart({ siteId, timeRange = '-1h' }: PowerChartProps) {
   const option: EChartsOption = {
     backgroundColor: 'transparent',
     animation: true,
-    animationDuration: 1000,
+    animationDuration: 500,
+    animationDurationUpdate: 300,
+    animationEasing: 'cubicOut',
+    animationEasingUpdate: 'cubicOut',
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(17, 24, 39, 0.95)',

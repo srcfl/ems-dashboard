@@ -1,46 +1,78 @@
 import type { SiteOverview, TimeSeriesResponse, TimeSeriesPoint } from './types';
 
-// Demo site configuration
-export const DEMO_SITE_ID = 'demo-site-001';
-export const DEMO_SITE_NAME = 'Demo Home';
+// Demo site configurations
+export const DEMO_SITES = [
+  {
+    id: 'demo-site-001',
+    name: 'Demo Home',
+    // Residential: 4.5kW solar, BYD battery, moderate load
+    solarPeak: 4500,
+    batteryCapacity: 10000,
+    baseLoad: 400,
+    peakLoad: 2000,
+  },
+  {
+    id: 'demo-site-002',
+    name: 'Demo Office',
+    // Commercial: 12kW solar, larger battery, higher daytime load
+    solarPeak: 12000,
+    batteryCapacity: 20000,
+    baseLoad: 1200,
+    peakLoad: 8000,
+  },
+] as const;
+
+// Legacy exports for backward compatibility
+export const DEMO_SITE_ID = DEMO_SITES[0].id;
+export const DEMO_SITE_NAME = DEMO_SITES[0].name;
+
+// Get site config by ID
+function getSiteConfig(siteId: string) {
+  return DEMO_SITES.find(s => s.id === siteId) || DEMO_SITES[0];
+}
 
 // Generate realistic solar curve (bell curve during daylight hours)
-function getSolarPower(date: Date): number {
+function getSolarPower(date: Date, solarPeak: number): number {
   const hour = date.getHours();
   // Solar production: 6am to 8pm, peak at 1pm
   if (hour < 6 || hour > 20) return 0;
   const peakHour = 13;
   const spread = 4;
-  const maxPower = 4500; // 4.5kW peak solar
-  const power = maxPower * Math.exp(-Math.pow(hour - peakHour, 2) / (2 * spread * spread));
+  const power = solarPeak * Math.exp(-Math.pow(hour - peakHour, 2) / (2 * spread * spread));
   // Add some noise
   return Math.max(0, power * (0.85 + Math.random() * 0.3));
 }
 
-// Generate load pattern (higher morning/evening, lower midday)
-function getLoadPower(date: Date): number {
+// Generate load pattern - residential vs commercial patterns
+function getLoadPower(date: Date, baseLoad: number, peakLoad: number, isCommercial: boolean): number {
   const hour = date.getHours();
-  const baseLoad = 400; // Base load 400W
-  let peakLoad = 0;
+  let loadMultiplier = 0;
 
-  // Morning peak 7-9am
-  if (hour >= 7 && hour <= 9) {
-    peakLoad = 1500 + Math.random() * 800;
-  }
-  // Evening peak 5-10pm
-  else if (hour >= 17 && hour <= 22) {
-    peakLoad = 2000 + Math.random() * 1200;
-  }
-  // Night base load
-  else if (hour >= 23 || hour < 6) {
-    peakLoad = 200 + Math.random() * 200;
-  }
-  // Midday moderate
-  else {
-    peakLoad = 600 + Math.random() * 400;
+  if (isCommercial) {
+    // Commercial: high during business hours 8am-6pm
+    if (hour >= 8 && hour <= 18) {
+      loadMultiplier = 0.7 + Math.random() * 0.3;
+    } else if (hour >= 6 && hour < 8) {
+      loadMultiplier = 0.3 + Math.random() * 0.2; // Ramping up
+    } else if (hour > 18 && hour <= 20) {
+      loadMultiplier = 0.3 + Math.random() * 0.2; // Ramping down
+    } else {
+      loadMultiplier = 0.1 + Math.random() * 0.1; // Night security/HVAC
+    }
+  } else {
+    // Residential: morning and evening peaks
+    if (hour >= 7 && hour <= 9) {
+      loadMultiplier = 0.6 + Math.random() * 0.3; // Morning peak
+    } else if (hour >= 17 && hour <= 22) {
+      loadMultiplier = 0.8 + Math.random() * 0.4; // Evening peak
+    } else if (hour >= 23 || hour < 6) {
+      loadMultiplier = 0.1 + Math.random() * 0.1; // Night
+    } else {
+      loadMultiplier = 0.3 + Math.random() * 0.2; // Midday
+    }
   }
 
-  return baseLoad + peakLoad;
+  return baseLoad + peakLoad * loadMultiplier;
 }
 
 // Battery behavior based on solar and load
@@ -57,11 +89,13 @@ function getBatteryPower(solar: number, load: number, soc: number): number {
   return 0;
 }
 
-// Get current demo data
-export function getDemoSiteOverview(): SiteOverview {
+// Get current demo data for a specific site
+export function getDemoSiteOverview(siteId: string = DEMO_SITE_ID): SiteOverview {
+  const config = getSiteConfig(siteId);
+  const isCommercial = siteId === 'demo-site-002';
   const now = new Date();
-  const solar = getSolarPower(now);
-  const load = getLoadPower(now);
+  const solar = getSolarPower(now, config.solarPeak);
+  const load = getLoadPower(now, config.baseLoad, config.peakLoad, isCommercial);
 
   // Simulate SoC based on time of day
   const hour = now.getHours();
@@ -74,8 +108,11 @@ export function getDemoSiteOverview(): SiteOverview {
   const battery = getBatteryPower(solar, load, soc);
   const grid = load - solar - battery;
 
+  // Use site-specific serial prefixes
+  const prefix = siteId.replace('demo-site-', '');
+
   return {
-    site_id: DEMO_SITE_ID,
+    site_id: siteId,
     timestamp: now.toISOString(),
     total_pv_power_w: solar,
     total_battery_power_w: battery,
@@ -86,8 +123,8 @@ export function getDemoSiteOverview(): SiteOverview {
     ders: [
       {
         type: 'pv',
-        device_serial: 'pv-demo-001',
-        make: 'SolarEdge',
+        device_serial: `pv-demo-${prefix}`,
+        make: isCommercial ? 'Fronius' : 'SolarEdge',
         power_w: solar,
         data: {
           W: solar,
@@ -95,14 +132,14 @@ export function getDemoSiteOverview(): SiteOverview {
           mppt1_A: solar > 0 ? solar / 40 / 2 : 0,
           mppt2_V: solar > 0 ? 37 + Math.random() * 4 : 0,
           mppt2_A: solar > 0 ? solar / 40 / 2 : 0,
-          heatsink_C: 25 + (solar / 4500) * 35,
+          heatsink_C: 25 + (solar / config.solarPeak) * 35,
           total_generation_Wh: 12500000 + Math.random() * 100000,
         },
       },
       {
         type: 'battery',
-        device_serial: 'bt-demo-001',
-        make: 'BYD',
+        device_serial: `bt-demo-${prefix}`,
+        make: isCommercial ? 'Tesla' : 'BYD',
         power_w: battery,
         data: {
           W: battery,
@@ -116,7 +153,7 @@ export function getDemoSiteOverview(): SiteOverview {
       },
       {
         type: 'meter',
-        device_serial: 'em-demo-001',
+        device_serial: `em-demo-${prefix}`,
         make: 'Eastron',
         power_w: grid,
         data: {
@@ -143,8 +180,12 @@ export function getDemoSiteOverview(): SiteOverview {
 // Generate time series data for demo
 export function getDemoTimeSeries(
   timeRange: string = '-1h',
-  resolution: string = '1m'
+  resolution: string = '1m',
+  siteId: string = DEMO_SITE_ID
 ): TimeSeriesResponse {
+  const config = getSiteConfig(siteId);
+  const isCommercial = siteId === 'demo-site-002';
+  const prefix = siteId.replace('demo-site-', '');
   const now = new Date();
   const data: TimeSeriesPoint[] = [];
 
@@ -174,25 +215,25 @@ export function getDemoTimeSeries(
 
   for (let t = startTime; t <= now.getTime(); t += intervalMs) {
     const date = new Date(t);
-    const solar = getSolarPower(date);
-    const load = getLoadPower(date);
+    const solar = getSolarPower(date, config.solarPeak);
+    const load = getLoadPower(date, config.baseLoad, config.peakLoad, isCommercial);
     const battery = getBatteryPower(solar, load, soc);
     const grid = load - solar - battery;
 
-    // Update SoC
-    soc += (battery / 10000) * (intervalMs / 3600000);
+    // Update SoC based on battery capacity
+    soc += (battery / config.batteryCapacity) * (intervalMs / 3600000);
     soc = Math.max(0.1, Math.min(0.95, soc));
 
     const timestamp = date.toISOString();
 
     data.push({ timestamp, value: load, type: 'load', device_serial: 'load' });
-    data.push({ timestamp, value: solar, type: 'pv', device_serial: 'pv-demo-001' });
-    data.push({ timestamp, value: battery, type: 'battery', device_serial: 'bt-demo-001' });
-    data.push({ timestamp, value: grid, type: 'grid', device_serial: 'em-demo-001' });
+    data.push({ timestamp, value: solar, type: 'pv', device_serial: `pv-demo-${prefix}` });
+    data.push({ timestamp, value: battery, type: 'battery', device_serial: `bt-demo-${prefix}` });
+    data.push({ timestamp, value: grid, type: 'grid', device_serial: `em-demo-${prefix}` });
   }
 
   return {
-    site_id: DEMO_SITE_ID,
+    site_id: siteId,
     der_type: null,
     field: 'W',
     start: new Date(startTime).toISOString(),
