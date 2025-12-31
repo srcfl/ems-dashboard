@@ -44,13 +44,20 @@ export function useSourcefulAuth() {
     }
 
     if (!wallets || wallets.length === 0) {
-      setError('No wallet available');
+      setError('No wallet available. Please ensure you are logged in.');
+      return null;
+    }
+
+    // Check if wallet is connected and ready
+    const wallet = wallets[0];
+    if (!wallet.address) {
+      setError('Wallet not connected. Please try logging out and back in.');
       return null;
     }
 
     // Check for cached credentials first
     const cached = getCachedCredentials();
-    if (cached && cached.walletAddress === wallets[0].address) {
+    if (cached && cached.walletAddress === wallet.address) {
       setCredentials(cached);
       return cached;
     }
@@ -59,7 +66,6 @@ export function useSourcefulAuth() {
     setError(null);
 
     try {
-      const wallet = wallets[0];
       console.log('🔐 Generating Sourceful credentials for wallet:', wallet.address);
 
       // Create message with 1 year expiration
@@ -75,12 +81,20 @@ export function useSourcefulAuth() {
 
       console.log('🔐 Requesting signature for message...');
 
-      // Sign the message - no uiOptions for smoother auto-sign with embedded wallets
+      // Sign the message with timeout to prevent infinite loading
       const messageBytes = new TextEncoder().encode(plainTextMessage);
-      const signatureResult = await signMessage({
+
+      const signaturePromise = signMessage({
         message: messageBytes,
         wallet: wallet,
       });
+
+      // Add 30 second timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Signing timed out. Please try again.')), 30000);
+      });
+
+      const signatureResult = await Promise.race([signaturePromise, timeoutPromise]);
 
       console.log('🔐 Signature received:', signatureResult);
 
