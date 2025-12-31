@@ -3,12 +3,6 @@
 
 const SEL_API_URL = import.meta.env.VITE_SEL_API_URL || 'http://localhost:3030';
 
-// Signature function type for authenticated requests
-export type SignRequestFn = (message: string) => Promise<{
-  signature: string;
-  walletAddress: string;
-}>;
-
 export interface ValidateResponse {
   valid: boolean;
   error?: string;
@@ -166,24 +160,37 @@ export interface UpdateWebhookRequest {
 
 class SELClient {
   private baseUrl: string;
-  private signRequest: SignRequestFn | null = null;
+  private session: {
+    walletAddress: string;
+    signature: string;
+    expiry: number;
+  } | null = null;
 
   constructor(baseUrl: string = SEL_API_URL) {
     this.baseUrl = baseUrl;
   }
 
   /**
-   * Set the signing function for authenticated requests
+   * Set the session for authenticated requests (sign once, reuse)
    */
-  setSigningFunction(signFn: SignRequestFn | null) {
-    this.signRequest = signFn;
+  setSession(walletAddress: string, signature: string, expiry: number) {
+    this.session = { walletAddress, signature, expiry };
   }
 
   /**
-   * Check if signing is available
+   * Clear the current session
    */
-  hasSigningFunction(): boolean {
-    return this.signRequest !== null;
+  clearSession() {
+    this.session = null;
+  }
+
+  /**
+   * Check if we have a valid session
+   */
+  hasValidSession(): boolean {
+    if (!this.session) return false;
+    const now = Math.floor(Date.now() / 1000);
+    return this.session.expiry > now + 60; // 1 minute buffer
   }
 
   private async fetch<T>(endpoint: string, options?: RequestInit, requireAuth: boolean = false): Promise<T> {
@@ -192,21 +199,18 @@ class SELClient {
       ...(options?.headers as Record<string, string>),
     };
 
-    // Add auth headers if required and signing function is available
-    if (requireAuth && this.signRequest) {
-      const method = options?.method || 'GET';
-      const timestamp = Math.floor(Date.now() / 1000).toString();
-      const message = `${method}:${endpoint}:${timestamp}`;
-
-      try {
-        const { signature, walletAddress } = await this.signRequest(message);
-        headers['X-Wallet-Address'] = walletAddress;
-        headers['X-Signature'] = signature;
-        headers['X-Timestamp'] = timestamp;
-      } catch (err) {
-        console.error('Failed to sign request:', err);
-        throw new Error('Authentication failed: could not sign request');
+    // Add session auth headers if required
+    if (requireAuth) {
+      if (!this.session) {
+        throw new Error('Authentication required: no session available');
       }
+      const now = Math.floor(Date.now() / 1000);
+      if (this.session.expiry <= now) {
+        throw new Error('Authentication required: session expired');
+      }
+      headers['X-Wallet-Address'] = this.session.walletAddress;
+      headers['X-Session-Signature'] = this.session.signature;
+      headers['X-Session-Expiry'] = this.session.expiry.toString();
     }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {

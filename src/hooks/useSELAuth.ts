@@ -1,40 +1,109 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallets, useSignMessage } from '@privy-io/react-auth/solana';
-import { selClient, type SignRequestFn } from '../api/sel-client';
+import { selClient } from '../api/sel-client';
 import { base58EncodeSignature } from '../api/sourceful-auth';
 
+const SEL_SESSION_KEY = 'sel_session';
+const SESSION_DURATION_SECONDS = 3600; // 1 hour
+
+interface SELSession {
+  walletAddress: string;
+  signature: string;
+  expiry: number; // Unix timestamp
+}
+
+function getCachedSession(): SELSession | null {
+  try {
+    const stored = localStorage.getItem(SEL_SESSION_KEY);
+    if (!stored) return null;
+
+    const session = JSON.parse(stored) as SELSession;
+
+    // Check if session is still valid (with 5 min buffer)
+    const now = Math.floor(Date.now() / 1000);
+    if (session.expiry < now + 300) {
+      localStorage.removeItem(SEL_SESSION_KEY);
+      return null;
+    }
+
+    return session;
+  } catch {
+    localStorage.removeItem(SEL_SESSION_KEY);
+    return null;
+  }
+}
+
+function cacheSession(session: SELSession) {
+  localStorage.setItem(SEL_SESSION_KEY, JSON.stringify(session));
+}
+
+export function clearSELSession() {
+  localStorage.removeItem(SEL_SESSION_KEY);
+}
+
 /**
- * Hook to configure SEL client with wallet authentication
+ * Hook to configure SEL client with session-based wallet authentication
  *
- * This hook sets up the SEL client to sign requests using the user's
- * Solana wallet. Each request to protected SEL endpoints will include:
- * - X-Wallet-Address: The user's wallet public key (base58)
- * - X-Signature: Ed25519 signature of "{method}:{path}:{timestamp}"
- * - X-Timestamp: Unix timestamp in seconds
+ * Signs a session message once (valid for 1 hour), caches it, and reuses
+ * for all subsequent requests. No need to sign every request.
  */
 export function useSELAuth() {
   const { authenticated } = usePrivy();
   const { wallets } = useWallets();
   const { signMessage } = useSignMessage();
+  const [session, setSession] = useState<SELSession | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  // Create the signing function for SEL requests
-  const createSigningFunction = useCallback((): SignRequestFn | null => {
+  // Try to load cached session on mount
+  useEffect(() => {
+    if (authenticated && wallets.length > 0) {
+      const cached = getCachedSession();
+      if (cached && cached.walletAddress === wallets[0].address) {
+        setSession(cached);
+      }
+    }
+  }, [authenticated, wallets]);
+
+  // Clear session on logout
+  useEffect(() => {
+    if (!authenticated) {
+      setSession(null);
+      clearSELSession();
+    }
+  }, [authenticated]);
+
+  // Generate a new session
+  const generateSession = useCallback(async (): Promise<SELSession | null> => {
     if (!authenticated || !wallets || wallets.length === 0) {
       return null;
     }
 
-    const wallet = wallets[0];
+    // Check for valid cached session first
+    const cached = getCachedSession();
+    if (cached && cached.walletAddress === wallets[0].address) {
+      setSession(cached);
+      return cached;
+    }
 
-    return async (message: string) => {
+    setIsGenerating(true);
+
+    try {
+      const wallet = wallets[0];
+      const expiry = Math.floor(Date.now() / 1000) + SESSION_DURATION_SECONDS;
+
+      // Session message format that backend will verify
+      const message = `SEL-SESSION:${wallet.address}:${expiry}`;
       const messageBytes = new TextEncoder().encode(message);
+
+      console.log('🔐 Generating SEL session for wallet:', wallet.address);
 
       const signatureResult = await signMessage({
         message: messageBytes,
         wallet: wallet,
       });
 
-      // Extract signature bytes - handle different response formats
+      // Extract signature bytes
       let signatureBytes: Uint8Array;
       const result = signatureResult as unknown;
       if (result && typeof result === 'object' && 'signature' in result) {
@@ -45,27 +114,51 @@ export function useSELAuth() {
         throw new Error('Unexpected signature format');
       }
 
-      return {
-        signature: base58EncodeSignature(signatureBytes),
+      const newSession: SELSession = {
         walletAddress: wallet.address,
+        signature: base58EncodeSignature(signatureBytes),
+        expiry,
       };
-    };
+
+      cacheSession(newSession);
+      setSession(newSession);
+      setIsGenerating(false);
+
+      console.log('🔐 SEL session generated, valid until:', new Date(expiry * 1000));
+      return newSession;
+    } catch (err) {
+      console.error('🔐 Failed to generate SEL session:', err);
+      setIsGenerating(false);
+      return null;
+    }
   }, [authenticated, wallets, signMessage]);
 
-  // Configure the SEL client with the signing function
+  // Configure SEL client with session
   useEffect(() => {
-    const signFn = createSigningFunction();
-    selClient.setSigningFunction(signFn);
+    if (session) {
+      selClient.setSession(session.walletAddress, session.signature, session.expiry);
+    } else {
+      selClient.clearSession();
+    }
+  }, [session]);
 
-    // Cleanup on unmount or when auth changes
-    return () => {
-      selClient.setSigningFunction(null);
-    };
-  }, [createSigningFunction]);
+  // Auto-generate session when authenticated but no session exists
+  useEffect(() => {
+    if (authenticated && wallets.length > 0 && !session && !isGenerating) {
+      // Small delay to let UI settle
+      const timer = setTimeout(() => {
+        generateSession();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [authenticated, wallets, session, isGenerating, generateSession]);
 
   return {
-    isReady: authenticated && wallets.length > 0,
+    isReady: authenticated && wallets.length > 0 && !!session,
     walletAddress: wallets.length > 0 ? wallets[0].address : null,
-    hasSigningCapability: selClient.hasSigningFunction(),
+    hasSession: !!session,
+    isGenerating,
+    generateSession,
+    clearSession: clearSELSession,
   };
 }
