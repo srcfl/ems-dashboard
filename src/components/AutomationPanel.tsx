@@ -226,12 +226,21 @@ export function AutomationPanel({ siteId, isDemoMode = false }: AutomationPanelP
     }
   }, [siteId, isDemoMode, ensureSession]);
 
-  // Sync rules when they change (only in real mode)
+  // Track if we've done the initial load (to skip auto-sync on mount)
+  const initialLoadRef = useRef(true);
+
+  // Sync rules when they change (only in real mode, skip initial load)
   useEffect(() => {
+    // Skip sync on initial load - only sync when user makes changes
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      return;
+    }
+
     if (!isDemoMode && rules.length > 0) {
       syncRulesToBackend(rules);
     }
-  }, [rules, syncRulesToBackend]);
+  }, [rules, syncRulesToBackend, isDemoMode]);
 
   // Process scheduler response and create logs (only in real mode)
   const processSchedulerResponse = useCallback((response: CheckSchedulesResponse) => {
