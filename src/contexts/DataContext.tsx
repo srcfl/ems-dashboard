@@ -51,12 +51,18 @@ export function DataProvider({ children }: DataProviderProps) {
     localStorage.setItem('demo_mode', String(demo));
   };
 
-  // Log when credentials are needed (user must click to sign)
+  // Auto-generate credentials when authenticated but no credentials exist
+  // This triggers the wallet signing automatically after Privy login
   useEffect(() => {
     if (ready && !hasCredentials && !isGenerating && !isDemoMode) {
-      console.log('Credentials needed - user must sign to authenticate');
+      console.log('🔐 Auto-generating Sourceful API credentials...');
+      // Small delay to let the UI settle after login
+      const timer = setTimeout(() => {
+        generateCredentials();
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [ready, hasCredentials, isGenerating, isDemoMode]);
+  }, [ready, hasCredentials, isGenerating, isDemoMode, generateCredentials]);
 
   // In demo mode, we're always ready
   const needsCredentials = !isDemoMode && !hasCredentials && !isGenerating;

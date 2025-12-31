@@ -114,23 +114,29 @@ export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
     );
   }
 
-  // Show sign button when credentials are needed
+  // Show waiting state when credentials are being auto-generated
+  // The signing popup will appear automatically
   if (needsCredentials) {
     return (
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 text-center">
-        <h3 className="text-lg font-medium text-white mb-2">Connect to Sourceful API</h3>
-        <p className="text-gray-400 text-sm mb-4">
-          Sign a message to access your energy data. This is a one-time step that stays valid for 1 year.
+        <div className="flex items-center justify-center gap-2 text-yellow-400 mb-2">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <h3 className="text-lg font-medium">Connecting to Sourceful API...</h3>
+        </div>
+        <p className="text-gray-400 text-sm">
+          Please approve the signature request in your wallet.
         </p>
         {credentialError && (
-          <p className="text-red-400 text-sm mb-3">{credentialError}</p>
+          <div className="mt-4">
+            <p className="text-red-400 text-sm mb-3">{credentialError}</p>
+            <button
+              onClick={() => generateCredentials()}
+              className="px-6 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500 transition-colors font-medium"
+            >
+              Try Again
+            </button>
+          </div>
         )}
-        <button
-          onClick={() => generateCredentials()}
-          className="px-6 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500 transition-colors font-medium"
-        >
-          Sign & Connect
-        </button>
       </div>
     );
   }
