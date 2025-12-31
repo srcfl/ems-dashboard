@@ -904,12 +904,12 @@ async fn main() {
         .route("/api/evaluate", post(evaluate))
         .route("/api/schedules/check", post(check_schedules))
         // Webhook endpoints
-        .route("/api/webhooks/:site_id", get(list_webhooks))
-        .route("/api/webhooks/:site_id", post(create_webhook))
-        .route("/api/webhooks/:site_id/:webhook_id", put(update_webhook))
-        .route("/api/webhooks/:site_id/:webhook_id", delete(delete_webhook))
-        .route("/api/webhooks/:site_id/:webhook_id/test", post(test_webhook_endpoint))
-        .route("/api/webhooks/:site_id/history", get(get_webhook_history))
+        .route("/api/webhooks/{site_id}", get(list_webhooks))
+        .route("/api/webhooks/{site_id}", post(create_webhook))
+        .route("/api/webhooks/{site_id}/{webhook_id}", put(update_webhook))
+        .route("/api/webhooks/{site_id}/{webhook_id}", delete(delete_webhook))
+        .route("/api/webhooks/{site_id}/{webhook_id}/test", post(test_webhook_endpoint))
+        .route("/api/webhooks/{site_id}/history", get(get_webhook_history))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state);
