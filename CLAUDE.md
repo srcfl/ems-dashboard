@@ -79,3 +79,25 @@ railway up       # Deploy to Railway
 
 - **Sourceful GraphQL API**: `api-vnext.srcful.dev`
 - **SEL Backend** (separate repo): For automation rule execution
+
+## Recent Changes (2025-01-01)
+
+### UI Improvements
+- **DataQualityStats**: Now shows real API connection status and latency (was simulated)
+- **Battery icon**: Changed from signal bars to proper battery shape with fill level
+- **Edit button**: Moved from top-right (overlapping cards) to fixed bottom-right corner
+
+### Authentication Fixes
+- **Wallet signing timeout**: Added 30-second timeout to prevent infinite loading
+- **Auto-sync disabled on load**: AutomationPanel no longer triggers wallet signing on page load
+  - Only syncs rules to backend when user makes actual changes
+  - Fixes "Connecting to your wallet" dialog appearing unexpectedly
+
+### Two Auth Systems
+1. **Sourceful API Auth** (`useSourcefulAuth.ts`)
+   - Signs once after Privy login, cached 1 year
+   - Manual "Connect & Sign" button flow
+
+2. **SEL Backend Auth** (`useSELAuth.ts`)
+   - Session-based, 1 hour validity
+   - On-demand only - triggered when saving automations
