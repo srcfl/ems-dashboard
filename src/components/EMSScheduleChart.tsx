@@ -34,11 +34,12 @@ interface ChartDataPoint {
   slotIndex: number;
 }
 
+// Sourceful Design System mode colors
 const MODE_COLORS: Record<EMSMode, { bg: string; border: string }> = {
-  IDLE: { bg: 'rgba(107, 114, 128, 0.15)', border: '#6b7280' },
-  SELF_CONSUMPTION: { bg: 'rgba(34, 197, 94, 0.2)', border: '#22c55e' },
-  FORCE_CHARGE: { bg: 'rgba(59, 130, 246, 0.25)', border: '#3b82f6' },
-  FORCE_DISCHARGE: { bg: 'rgba(249, 115, 22, 0.25)', border: '#f97316' },
+  IDLE: { bg: 'rgba(148, 163, 184, 0.15)', border: '#94a3b8' },
+  SELF_CONSUMPTION: { bg: 'rgba(0, 255, 132, 0.15)', border: '#00FF84' },    // Sourceful green
+  FORCE_CHARGE: { bg: 'rgba(66, 165, 245, 0.2)', border: '#42A5F5' },        // Sourceful blue
+  FORCE_DISCHARGE: { bg: 'rgba(255, 133, 51, 0.2)', border: '#FF8533' },     // Sourceful orange
 };
 
 export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
@@ -305,13 +306,13 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
               <>
                 <ReferenceLine
                   x={currentTimeLabel}
-                  stroke="#a855f7"
+                  stroke="#00FF84"
                   strokeWidth={3}
                   yAxisId="price"
                 />
                 <ReferenceLine
                   x={currentTimeLabel}
-                  stroke="#a855f7"
+                  stroke="#00FF84"
                   strokeWidth={12}
                   strokeOpacity={0.2}
                   yAxisId="price"
@@ -325,40 +326,40 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
               type="monotone"
               dataKey={(d: ChartDataPoint) => d.loadForecast > 0 ? (d.loadForecast / 1000) * 5 + minPrice : null}
               stroke="none"
-              fill="#ef4444"
+              fill="#94a3b8"
               fillOpacity={0.1}
               connectNulls
             />
 
-            {/* Price line */}
+            {/* Price line - Sourceful yellow */}
             <Line
               yAxisId="price"
               type="stepAfter"
               dataKey="priceOre"
-              stroke="#f59e0b"
+              stroke="#FFD500"
               strokeWidth={2}
               dot={false}
               name="Price"
             />
 
-            {/* Battery SoC - BOLD */}
+            {/* Battery SoC - Sourceful green */}
             <Line
               yAxisId="soc"
               type="monotone"
               dataKey="batterySoc"
-              stroke="#f97316"
+              stroke="#00FF84"
               strokeWidth={3}
               dot={false}
               name="Battery SoC"
               connectNulls
             />
 
-            {/* EV SoC - BOLD */}
+            {/* EV SoC - Sourceful teal */}
             <Line
               yAxisId="soc"
               type="monotone"
               dataKey="evSoc"
-              stroke="#06b6d4"
+              stroke="#14B8A6"
               strokeWidth={3}
               dot={false}
               name="EV SoC"
@@ -368,22 +369,22 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* Legend */}
+      {/* Legend - Sourceful Design System colors */}
       <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-gray-700 text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-0.5 bg-amber-500" />
+          <div className="w-5 h-0.5 bg-[#FFD500]" />
           <span className="text-gray-400">Electricity Price</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-5 h-1 bg-orange-500 rounded" />
+          <div className="w-5 h-1 bg-[#00FF84] rounded" />
           <span className="text-gray-400">Battery SoC</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-5 h-1 bg-cyan-500 rounded" />
+          <div className="w-5 h-1 bg-[#14B8A6] rounded" />
           <span className="text-gray-400">EV SoC</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-purple-500 rounded-full" />
+          <div className="w-3 h-3 bg-[#00FF84] rounded-full" />
           <span className="text-gray-400">Current Time</span>
         </div>
       </div>

@@ -19,18 +19,19 @@ interface AnimatedPowerCardProps {
 }
 
 // Battery icon - horizontal battery shape with fill level
+// Uses Sourceful Design System colors
 function BatteryIcon({ level, color }: { level: number; color: string }) {
   const barColors = {
-    green: { active: '#22C55E', inactive: 'rgba(34, 197, 94, 0.25)' },
-    purple: { active: '#A855F7', inactive: 'rgba(168, 85, 247, 0.25)' },
-    orange: { active: '#F97316', inactive: 'rgba(249, 115, 22, 0.25)' },
-    yellow: { active: '#EAB308', inactive: 'rgba(234, 179, 8, 0.25)' },
-    red: { active: '#EF4444', inactive: 'rgba(239, 68, 68, 0.25)' },
-    blue: { active: '#3B82F6', inactive: 'rgba(59, 130, 246, 0.25)' },
+    green: { active: '#00FF84', inactive: 'rgba(0, 255, 132, 0.25)' },     // Sourceful neon green
+    purple: { active: '#00FF84', inactive: 'rgba(0, 255, 132, 0.25)' },    // Battery uses neon green
+    orange: { active: '#FF8533', inactive: 'rgba(255, 133, 51, 0.25)' },   // Sourceful orange
+    yellow: { active: '#FFD500', inactive: 'rgba(255, 213, 0, 0.25)' },    // Sourceful yellow
+    red: { active: '#FF3D3D', inactive: 'rgba(255, 61, 61, 0.25)' },       // Sourceful red
+    blue: { active: '#42A5F5', inactive: 'rgba(66, 165, 245, 0.25)' },     // Sourceful blue
   };
   const colorScheme = barColors[color as keyof typeof barColors] || barColors.green;
   // Use red when battery is low
-  const fillColor = level < 0.2 ? '#EF4444' : colorScheme.active;
+  const fillColor = level < 0.2 ? '#FF3D3D' : colorScheme.active;
   const fillWidth = Math.max(2, level * 20); // 20px max width for fill
 
   return (
@@ -61,60 +62,61 @@ function BatteryIcon({ level, color }: { level: number; color: string }) {
   );
 }
 
+// Sourceful Design System color map
 const colorMap = {
   orange: {
-    text: 'text-orange-400',
-    glow: 'shadow-orange-500/50',
-    bg: 'from-orange-500/10 to-orange-500/5',
-    border: 'border-orange-500/30',
-    progressBg: 'bg-orange-500',
-    sparkline: '#F97316',
-    sparklineFill: 'rgba(249, 115, 22, 0.15)',
+    text: 'text-[#FF8533]',
+    glow: 'shadow-[#FF8533]/50',
+    bg: 'from-[#FF8533]/10 to-[#FF8533]/5',
+    border: 'border-[#FF8533]/30',
+    progressBg: 'bg-[#FF8533]',
+    sparkline: '#FF8533',        // Sourceful orange
+    sparklineFill: 'rgba(255, 133, 51, 0.15)',
   },
   yellow: {
-    text: 'text-yellow-400',
-    glow: 'shadow-yellow-500/50',
-    bg: 'from-yellow-500/10 to-yellow-500/5',
-    border: 'border-yellow-500/30',
-    progressBg: 'bg-yellow-500',
-    sparkline: '#EAB308',
-    sparklineFill: 'rgba(234, 179, 8, 0.15)',
+    text: 'text-[#FFD500]',
+    glow: 'shadow-[#FFD500]/50',
+    bg: 'from-[#FFD500]/10 to-[#FFD500]/5',
+    border: 'border-[#FFD500]/30',
+    progressBg: 'bg-[#FFD500]',
+    sparkline: '#FFD500',        // Sourceful yellow (solar)
+    sparklineFill: 'rgba(255, 213, 0, 0.15)',
   },
   purple: {
-    text: 'text-purple-400',
-    glow: 'shadow-purple-500/50',
-    bg: 'from-purple-500/10 to-purple-500/5',
-    border: 'border-purple-500/30',
-    progressBg: 'bg-purple-500',
-    sparkline: '#A855F7',
-    sparklineFill: 'rgba(168, 85, 247, 0.15)',
+    text: 'text-[#00FF84]',
+    glow: 'shadow-[#00FF84]/50',
+    bg: 'from-[#00FF84]/10 to-[#00FF84]/5',
+    border: 'border-[#00FF84]/30',
+    progressBg: 'bg-[#00FF84]',
+    sparkline: '#00FF84',        // Sourceful neon green (battery)
+    sparklineFill: 'rgba(0, 255, 132, 0.15)',
   },
   green: {
-    text: 'text-green-400',
-    glow: 'shadow-green-500/50',
-    bg: 'from-green-500/10 to-green-500/5',
-    border: 'border-green-500/30',
-    progressBg: 'bg-green-500',
-    sparkline: '#22C55E',
-    sparklineFill: 'rgba(34, 197, 94, 0.15)',
+    text: 'text-[#00FF84]',
+    glow: 'shadow-[#00FF84]/50',
+    bg: 'from-[#00FF84]/10 to-[#00FF84]/5',
+    border: 'border-[#00FF84]/30',
+    progressBg: 'bg-[#00FF84]',
+    sparkline: '#00FF84',        // Sourceful neon green
+    sparklineFill: 'rgba(0, 255, 132, 0.15)',
   },
   red: {
-    text: 'text-red-400',
-    glow: 'shadow-red-500/50',
-    bg: 'from-red-500/10 to-red-500/5',
-    border: 'border-red-500/30',
-    progressBg: 'bg-red-500',
-    sparkline: '#EF4444',
-    sparklineFill: 'rgba(239, 68, 68, 0.15)',
+    text: 'text-[#FF3D3D]',
+    glow: 'shadow-[#FF3D3D]/50',
+    bg: 'from-[#FF3D3D]/10 to-[#FF3D3D]/5',
+    border: 'border-[#FF3D3D]/30',
+    progressBg: 'bg-[#FF3D3D]',
+    sparkline: '#FF3D3D',        // Sourceful red
+    sparklineFill: 'rgba(255, 61, 61, 0.15)',
   },
   blue: {
-    text: 'text-blue-400',
-    glow: 'shadow-blue-500/50',
-    bg: 'from-blue-500/10 to-blue-500/5',
-    border: 'border-blue-500/30',
-    progressBg: 'bg-blue-500',
-    sparkline: '#3B82F6',
-    sparklineFill: 'rgba(59, 130, 246, 0.15)',
+    text: 'text-[#42A5F5]',
+    glow: 'shadow-[#42A5F5]/50',
+    bg: 'from-[#42A5F5]/10 to-[#42A5F5]/5',
+    border: 'border-[#42A5F5]/30',
+    progressBg: 'bg-[#42A5F5]',
+    sparkline: '#42A5F5',        // Sourceful blue (grid)
+    sparklineFill: 'rgba(66, 165, 245, 0.15)',
   },
 };
 

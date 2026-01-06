@@ -3,9 +3,18 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Sourceful Design System - Typography */
+:root {
+  --font-sans: 'Satoshi', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -51,75 +60,170 @@ body {
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Sourceful Energy Colors */
+  --color-energy-green: var(--energy-green);
+  --color-energy-yellow: var(--energy-yellow);
+  --color-energy-orange: var(--energy-orange);
+  --color-energy-red: var(--energy-red);
+  --color-energy-teal: var(--energy-teal);
+  --color-energy-navy: var(--energy-navy);
+  --color-energy-blue: var(--energy-blue);
+
+  /* Energy Flow Colors */
+  --color-solar: var(--solar);
+  --color-battery: var(--battery);
+  --color-grid: var(--grid);
+  --color-load: var(--load);
+  --color-export: var(--export);
+  --color-import: var(--import);
+  --color-ev: var(--ev);
+
+  /* Font families */
+  --font-family-sans: var(--font-sans);
+  --font-family-mono: var(--font-mono);
 }
 
+/* Light Mode - Sourceful Design System */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.5rem;
+
+  /* Base colors */
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  /* Primary - Sourceful Neon Green */
+  --primary: #00FF84;
+  --primary-foreground: #0f172a;
+
+  /* Secondary */
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+
+  /* Muted */
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  /* Accent */
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+
+  /* Destructive - Sourceful Red */
+  --destructive: #FF0D0D;
+
+  /* Border & Input */
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #00FF84;
+
+  /* Chart colors */
+  --chart-1: #00FF84;
+  --chart-2: #FFD500;
+  --chart-3: #2196F3;
+  --chart-4: #FF6B00;
+  --chart-5: #0D7377;
+
+  /* Sidebar */
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #00FF84;
+  --sidebar-primary-foreground: #0f172a;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #00FF84;
+
+  /* Sourceful Brand Colors */
+  --energy-green: #00FF84;
+  --energy-yellow: #FFD500;
+  --energy-orange: #FF6B00;
+  --energy-red: #FF0D0D;
+  --energy-teal: #0D7377;
+  --energy-navy: #1E3A5F;
+  --energy-blue: #2196F3;
+
+  /* Energy Flow Colors */
+  --solar: #FFD500;
+  --battery: #00FF84;
+  --grid: #2196F3;
+  --load: #64748b;
+  --export: #FFD500;
+  --import: #FF6B00;
+  --ev: #0D7377;
 }
 
+/* Dark Mode - Sourceful Design System */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Base colors */
+  --background: #0a0f1a;
+  --foreground: #f8fafc;
+  --card: #111827;
+  --card-foreground: #f8fafc;
+  --popover: #111827;
+  --popover-foreground: #f8fafc;
+
+  /* Primary - Sourceful Neon Green */
+  --primary: #00FF84;
+  --primary-foreground: #0a0f1a;
+
+  /* Secondary */
+  --secondary: #1e293b;
+  --secondary-foreground: #f8fafc;
+
+  /* Muted */
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+
+  /* Accent */
+  --accent: #1e293b;
+  --accent-foreground: #f8fafc;
+
+  /* Destructive */
+  --destructive: #FF3D3D;
+
+  /* Border & Input */
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #00FF84;
+
+  /* Chart colors - brighter for dark mode */
+  --chart-1: #00FF84;
+  --chart-2: #FFD500;
+  --chart-3: #42A5F5;
+  --chart-4: #FF8533;
+  --chart-5: #14B8A6;
+
+  /* Sidebar */
+  --sidebar: #111827;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #00FF84;
+  --sidebar-primary-foreground: #0a0f1a;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #00FF84;
+
+  /* Sourceful Brand Colors (same, but can be adjusted) */
+  --energy-green: #00FF84;
+  --energy-yellow: #FFD500;
+  --energy-orange: #FF8533;
+  --energy-red: #FF3D3D;
+  --energy-teal: #14B8A6;
+  --energy-navy: #1E3A5F;
+  --energy-blue: #42A5F5;
+
+  /* Energy Flow Colors */
+  --solar: #FFD500;
+  --battery: #00FF84;
+  --grid: #42A5F5;
+  --load: #94a3b8;
+  --export: #FFD500;
+  --import: #FF8533;
+  --ev: #14B8A6;
 }
 
 @layer base {
@@ -129,5 +233,58 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Typography defaults */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
+  }
 }
 
+/* Utility classes for energy colors */
+@layer utilities {
+  .text-solar { color: var(--solar); }
+  .text-battery { color: var(--battery); }
+  .text-grid { color: var(--grid); }
+  .text-load { color: var(--load); }
+  .text-export { color: var(--export); }
+  .text-import { color: var(--import); }
+  .text-ev { color: var(--ev); }
+
+  .bg-solar { background-color: var(--solar); }
+  .bg-battery { background-color: var(--battery); }
+  .bg-grid { background-color: var(--grid); }
+  .bg-load { background-color: var(--load); }
+  .bg-export { background-color: var(--export); }
+  .bg-import { background-color: var(--import); }
+  .bg-ev { background-color: var(--ev); }
+
+  .border-solar { border-color: var(--solar); }
+  .border-battery { border-color: var(--battery); }
+  .border-grid { border-color: var(--grid); }
+  .border-load { border-color: var(--load); }
+  .border-export { border-color: var(--export); }
+  .border-import { border-color: var(--import); }
+  .border-ev { border-color: var(--ev); }
+
+  /* Brand color utilities */
+  .text-energy-green { color: var(--energy-green); }
+  .text-energy-yellow { color: var(--energy-yellow); }
+  .text-energy-orange { color: var(--energy-orange); }
+  .text-energy-red { color: var(--energy-red); }
+  .text-energy-teal { color: var(--energy-teal); }
+  .text-energy-navy { color: var(--energy-navy); }
+  .text-energy-blue { color: var(--energy-blue); }
+
+  .bg-energy-green { background-color: var(--energy-green); }
+  .bg-energy-yellow { background-color: var(--energy-yellow); }
+  .bg-energy-orange { background-color: var(--energy-orange); }
+  .bg-energy-red { background-color: var(--energy-red); }
+  .bg-energy-teal { background-color: var(--energy-teal); }
+  .bg-energy-navy { background-color: var(--energy-navy); }
+  .bg-energy-blue { background-color: var(--energy-blue); }
+}

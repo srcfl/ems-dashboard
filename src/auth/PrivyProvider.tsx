@@ -86,7 +86,7 @@ export function PrivyProvider({ children }: Props) {
         config={{
           appearance: {
             theme: 'dark',
-            accentColor: env === 'development' ? '#8B5CF6' : '#EAB308',
+            accentColor: env === 'development' ? '#8B5CF6' : '#00FF84', // Sourceful neon green
             walletChainType: 'solana-only',
             walletList: ['phantom', 'solflare'],
           },

@@ -80,6 +80,34 @@ railway up       # Deploy to Railway
 - **Sourceful GraphQL API**: `api-vnext.srcful.dev`
 - **SEL Backend** (separate repo): For automation rule execution
 
+## Sourceful Design System
+
+This project implements the [Sourceful Design System](https://design.sourceful.energy/).
+
+### Typography
+- **Primary font**: Satoshi (loaded from Fontshare)
+- **Monospace font**: JetBrains Mono (loaded from Google Fonts)
+
+### Brand Colors
+CSS variables are defined in `src/index.css`:
+- `--energy-green`: #00FF84 (Neon green - primary brand color)
+- `--energy-yellow`: #FFD500 (Energy accent)
+- `--energy-orange`: #FF8533 (Warning states)
+- `--energy-red`: #FF3D3D (Error states)
+- `--energy-teal`: #14B8A6 (Secondary accent)
+- `--energy-navy`: #1E3A5F (Depth)
+- `--energy-blue`: #42A5F5 (Informational)
+
+### Energy Flow Colors
+- `--solar`: #FFD500 (Yellow)
+- `--battery`: #00FF84 (Neon green)
+- `--grid`: #42A5F5 (Blue)
+- `--load`: #94a3b8 (Muted gray)
+- `--ev`: #14B8A6 (Teal)
+
+### Utility Classes
+Energy color utilities available: `.text-solar`, `.bg-solar`, `.border-solar`, etc.
+
 ## Recent Changes (2025-01-01)
 
 ### UI Improvements

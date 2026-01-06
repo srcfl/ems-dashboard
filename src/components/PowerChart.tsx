@@ -20,11 +20,12 @@ interface ChartDataPoint {
   [key: string]: Date | number | undefined;
 }
 
+// Sourceful Design System Colors
 const COLORS = {
-  load: '#F97316',
-  pv: '#EAB308',
-  battery: '#A855F7',
-  grid: '#3B82F6',
+  load: '#94a3b8',      // --load (muted gray)
+  pv: '#FFD500',        // --solar (yellow)
+  battery: '#00FF84',   // --battery (neon green)
+  grid: '#42A5F5',      // --grid (blue)
 };
 
 const LABELS: Record<string, string> = {
@@ -276,7 +277,7 @@ export function PowerChart({ siteId, timeRange = '-1h', refreshTrigger }: PowerC
       },
       emphasis: {
         iconStyle: {
-          borderColor: '#F59E0B',
+          borderColor: '#00FF84', // Sourceful green
         },
       },
     },
@@ -339,13 +340,13 @@ export function PowerChart({ siteId, timeRange = '-1h', refreshTrigger }: PowerC
         bottom: 10,
         borderColor: 'rgba(55, 65, 81, 0.5)',
         backgroundColor: 'rgba(31, 41, 55, 0.5)',
-        fillerColor: 'rgba(245, 158, 11, 0.2)',
+        fillerColor: 'rgba(0, 255, 132, 0.15)', // Sourceful green
         handleStyle: {
-          color: '#F59E0B',
-          borderColor: '#F59E0B',
+          color: '#00FF84',
+          borderColor: '#00FF84',
         },
         moveHandleStyle: {
-          color: '#F59E0B',
+          color: '#00FF84',
         },
         textStyle: {
           color: '#9CA3AF',
@@ -353,18 +354,18 @@ export function PowerChart({ siteId, timeRange = '-1h', refreshTrigger }: PowerC
         },
         dataBackground: {
           lineStyle: {
-            color: 'rgba(245, 158, 11, 0.5)',
+            color: 'rgba(0, 255, 132, 0.5)',
           },
           areaStyle: {
-            color: 'rgba(245, 158, 11, 0.1)',
+            color: 'rgba(0, 255, 132, 0.1)',
           },
         },
         selectedDataBackground: {
           lineStyle: {
-            color: '#F59E0B',
+            color: '#00FF84',
           },
           areaStyle: {
-            color: 'rgba(245, 158, 11, 0.3)',
+            color: 'rgba(0, 255, 132, 0.3)',
           },
         },
         brushSelect: true,
@@ -430,7 +431,7 @@ export function PowerChart({ siteId, timeRange = '-1h', refreshTrigger }: PowerC
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={resetZoom}
-            className="text-amber-400 hover:text-amber-300"
+            className="text-primary hover:text-primary/80"
           >
             Reset
           </motion.button>
