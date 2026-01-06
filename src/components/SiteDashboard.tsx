@@ -183,7 +183,7 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
             <AnimatedPowerCard
               label="Load"
               value={site.load_w}
-              color="orange"
+              color="gray"
               sparklineData={sparklineData.load}
             />
             <AnimatedPowerCard

@@ -11,7 +11,7 @@ interface AnimatedPowerCardProps {
   label: string;
   value: number;
   unit?: string;
-  color: 'orange' | 'yellow' | 'purple' | 'green' | 'red' | 'blue';
+  color: 'orange' | 'yellow' | 'purple' | 'green' | 'red' | 'blue' | 'gray';
   prefix?: string;
   showBatteryIcon?: boolean;
   batteryLevel?: number; // 0-1
@@ -28,6 +28,7 @@ function BatteryIcon({ level, color }: { level: number; color: string }) {
     yellow: { active: '#FFD500', inactive: 'rgba(255, 213, 0, 0.25)' },    // Sourceful yellow
     red: { active: '#FF3D3D', inactive: 'rgba(255, 61, 61, 0.25)' },       // Sourceful red
     blue: { active: '#42A5F5', inactive: 'rgba(66, 165, 245, 0.25)' },     // Sourceful blue
+    gray: { active: '#94a3b8', inactive: 'rgba(148, 163, 184, 0.25)' },    // Muted gray (load)
   };
   const colorScheme = barColors[color as keyof typeof barColors] || barColors.green;
   // Use red when battery is low
@@ -117,6 +118,15 @@ const colorMap = {
     progressBg: 'bg-[#42A5F5]',
     sparkline: '#42A5F5',        // Sourceful blue (grid)
     sparklineFill: 'rgba(66, 165, 245, 0.15)',
+  },
+  gray: {
+    text: 'text-[#94a3b8]',
+    glow: 'shadow-[#94a3b8]/50',
+    bg: 'from-[#94a3b8]/10 to-[#94a3b8]/5',
+    border: 'border-[#94a3b8]/30',
+    progressBg: 'bg-[#94a3b8]',
+    sparkline: '#94a3b8',        // Muted gray (load)
+    sparklineFill: 'rgba(148, 163, 184, 0.15)',
   },
 };
 
