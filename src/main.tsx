@@ -5,6 +5,9 @@ if (typeof window !== 'undefined') {
   window.Buffer = Buffer;
 }
 
+// Force dark mode - add class to html element
+document.documentElement.classList.add('dark');
+
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
