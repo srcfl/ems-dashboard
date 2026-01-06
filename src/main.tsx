@@ -6,6 +6,7 @@ if (typeof window !== 'undefined') {
 }
 
 import { createRoot } from 'react-dom/client';
+import '@sourceful-energy/ui/styles.css';
 import './index.css';
 import App from './App.tsx';
 import { PrivyProvider } from './auth/PrivyProvider.tsx';

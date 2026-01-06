@@ -7,8 +7,9 @@ Sourceful Energy EMS Dashboard - A React-based energy management dashboard for m
 ## Tech Stack
 
 - **Framework**: React 19 + TypeScript + Vite
-- **Styling**: Tailwind CSS + shadcn/ui
-- **Charts**: Recharts
+- **UI Components**: `@sourceful-energy/ui` (Sourceful Design System)
+- **Styling**: Tailwind CSS
+- **Charts**: ECharts (echarts-for-react), Recharts
 - **Animation**: Framer Motion
 - **Authentication**: Privy (email + Solana wallet)
 - **API**: Sourceful GraphQL API
@@ -82,31 +83,54 @@ railway up       # Deploy to Railway
 
 ## Sourceful Design System
 
-This project implements the [Sourceful Design System](https://design.sourceful.energy/).
+This project uses the **Sourceful Design System** (`@sourceful-energy/ui`).
 
-### Typography
-- **Primary font**: Satoshi (loaded from Fontshare)
-- **Monospace font**: JetBrains Mono (loaded from Google Fonts)
+Reference: https://design.sourceful.energy/
 
-### Brand Colors
-CSS variables are defined in `src/index.css`:
-- `--energy-green`: #00FF84 (Neon green - primary brand color)
-- `--energy-yellow`: #FFD500 (Energy accent)
-- `--energy-orange`: #FF8533 (Warning states)
-- `--energy-red`: #FF3D3D (Error states)
-- `--energy-teal`: #14B8A6 (Secondary accent)
-- `--energy-navy`: #1E3A5F (Depth)
-- `--energy-blue`: #42A5F5 (Informational)
+### Component Usage
 
-### Energy Flow Colors
+```tsx
+// Styles imported in main.tsx
+import "@sourceful-energy/ui/styles.css"
+
+// Import components as needed
+import { Button, Card, Badge, Input, Label } from "@sourceful-energy/ui"
+```
+
+### Component Quick Reference
+
+| Need | Use |
+|------|-----|
+| Actions | `Button` (variants: default, outline, destructive, energy, success, warning) |
+| Status indicators | `Badge` (variants: default, secondary, destructive, outline, energy, success, warning, info) |
+| Containers | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` |
+| Forms | `Input`, `Label`, `Select`, `Checkbox`, `Switch`, `Textarea`, `Slider` |
+| Feedback | `Alert`, `toast` (from sonner), `Progress`, `Skeleton` |
+| Overlays | `Dialog`, `Sheet`, `DropdownMenu`, `Tooltip` |
+| Layout | `Tabs`, `Accordion`, `Separator`, `ScrollArea`, `Table` |
+| Brand | `Logo` (variants: full, symbol, wordmark) |
+
+### Color Tokens
+
+Use semantic tokens instead of raw hex values:
+- `text-primary` - Sourceful green
+- `text-destructive` - Error red
+- `bg-muted` - Subtle background
+- `text-muted-foreground` - Secondary text
+
+### Energy Flow Colors (custom)
+CSS variables defined in `src/index.css`:
 - `--solar`: #FFD500 (Yellow)
 - `--battery`: #00FF84 (Neon green)
 - `--grid`: #42A5F5 (Blue)
 - `--load`: #94a3b8 (Muted gray)
 - `--ev`: #14B8A6 (Teal)
 
-### Utility Classes
-Energy color utilities available: `.text-solar`, `.bg-solar`, `.border-solar`, etc.
+### Don't
+- Don't create custom buttons, cards, or form inputs - use the design system
+- Don't use raw colors like `#22c55e` - use tokens like `text-primary`
+- Don't install shadcn/ui directly - components are already included
+- Don't create custom modal/dialog components - use `Dialog` or `Sheet`
 
 ## Recent Changes (2025-01-01)
 
