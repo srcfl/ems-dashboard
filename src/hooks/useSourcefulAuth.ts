@@ -52,24 +52,29 @@ export function useSourcefulAuth() {
       return;
     }
 
-    const wallet = getPreferredWallet();
-
-    // Clear stale credentials from a different wallet
+    // Check if cached credentials belong to ANY connected wallet (not just preferred)
+    // This prevents race conditions where user object loads after wallets
     const cached = getCachedCredentials();
-    if (cached && cached.walletAddress !== wallet.address) {
+    if (cached) {
+      const cachedWalletConnected = wallets.some((w) => w.address === cached.walletAddress);
+      if (cachedWalletConnected) {
+        setCredentials(cached);
+        return;
+      }
+      // Cached wallet not in connected wallets — stale, clear it
       clearCredentials();
       setCredentials(null);
-    } else if (cached && cached.walletAddress === wallet.address) {
-      setCredentials(cached);
-      return;
     }
+
+    // Wait for user object before generating — we need it to find the embedded wallet
+    if (!user) return;
 
     // No valid cached credentials - auto-trigger signing (once)
     if (!autoGenerateAttempted.current) {
       autoGenerateAttempted.current = true;
       generateCredentials();
     }
-  }, [authenticated, wallets]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authenticated, wallets, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const generateCredentials = useCallback(async (): Promise<AuthCredentials | null> => {
     if (!ready) {
@@ -88,9 +93,9 @@ export function useSourcefulAuth() {
       return null;
     }
 
-    // Check for cached credentials first
+    // Check for cached credentials — accept if they match ANY connected wallet
     const cached = getCachedCredentials();
-    if (cached && cached.walletAddress === wallet.address) {
+    if (cached && wallets.some((w) => w.address === cached.walletAddress)) {
       setCredentials(cached);
       return cached;
     }
