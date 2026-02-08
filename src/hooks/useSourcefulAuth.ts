@@ -14,7 +14,10 @@ import {
 // Prefer the Privy embedded wallet (signs silently, no popup)
 // Fall back to first available wallet if no embedded wallet found
 function getPreferredWallet(wallets: ReturnType<typeof useWallets>['wallets']) {
-  return wallets.find(w => w.walletClientType === 'privy') || wallets[0];
+  // PrivyStandardWallet exposes isPrivyWallet on the standardWallet object
+  return wallets.find(w =>
+    (w.standardWallet as { isPrivyWallet?: boolean }).isPrivyWallet
+  ) || wallets[0];
 }
 
 export function useSourcefulAuth() {
