@@ -84,7 +84,7 @@ export function PrivyProvider({ children }: Props) {
           loginMethods: ['email', 'wallet'],
           embeddedWallets: {
             solana: {
-              createOnLogin: 'users-without-wallets',
+              createOnLogin: 'all-users',
             },
           },
           externalWallets: {
