@@ -11,6 +11,12 @@ import {
   type AuthCredentials,
 } from '../api/sourceful-auth';
 
+// Prefer the Privy embedded wallet (signs silently, no popup)
+// Fall back to first available wallet if no embedded wallet found
+function getPreferredWallet(wallets: ReturnType<typeof useWallets>['wallets']) {
+  return wallets.find(w => w.walletClientType === 'privy') || wallets[0];
+}
+
 export function useSourcefulAuth() {
   const { ready, authenticated } = usePrivy();
   const { wallets } = useWallets();
@@ -34,7 +40,7 @@ export function useSourcefulAuth() {
       return;
     }
 
-    const wallet = wallets[0];
+    const wallet = getPreferredWallet(wallets);
 
     // Clear stale credentials from a different wallet
     const cached = getCachedCredentials();
@@ -64,8 +70,7 @@ export function useSourcefulAuth() {
       return null;
     }
 
-    // Check if wallet is connected and ready
-    const wallet = wallets[0];
+    const wallet = getPreferredWallet(wallets);
     if (!wallet.address) {
       setError('Wallet not connected. Please try logging out and back in.');
       return null;
