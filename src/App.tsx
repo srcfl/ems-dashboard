@@ -6,7 +6,6 @@ import { AuthButton } from './components/AuthButton';
 import { UserSites } from './components/UserSites';
 import { usePrivyEnv } from './auth/PrivyProvider';
 import { useDataContext } from './contexts/DataContext';
-import { useSELAuth } from './hooks/useSELAuth';
 import { DEMO_SITES } from './api/demo-data';
 
 function App() {
@@ -14,9 +13,6 @@ function App() {
   const { ready, authenticated, login, logout } = usePrivy();
   const { env, switchEnv } = usePrivyEnv();
   const { isDemoMode, setDemoMode } = useDataContext();
-
-  // Configure SEL client with wallet authentication
-  useSELAuth();
 
   // Auto-select first demo site when in demo mode
   useEffect(() => {

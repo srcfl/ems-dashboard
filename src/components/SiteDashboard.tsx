@@ -13,7 +13,6 @@ import { PowerChart } from './PowerChart';
 import { EMSPanel } from './EMSPanel';
 import { ErrorBoundary } from './ErrorBoundary';
 import { DataQualityStats } from './DataQualityStats';
-import { AutomationPanel } from './AutomationPanel';
 import { SharePanel } from './SharePanel';
 import { DashboardLayout } from './DashboardLayout';
 import type { DashboardWidget } from './DashboardLayout';
@@ -230,25 +229,14 @@ export function SiteDashboard({ siteId }: SiteDashboardProps) {
           </ErrorBoundary>
         ),
       },
-      // Automations Panel
-      {
-        id: 'automations',
-        title: 'Automations',
-        defaultLayout: { x: 0, y: 17, w: 12, h: 14, minH: 8, minW: 4 },
-        component: (
-          <ErrorBoundary>
-            <AutomationPanel siteId={siteId} isDemoMode={isDemoMode} />
-          </ErrorBoundary>
-        ),
-      },
     ];
 
-    // EMS Panel (only if not demo mode)
+    // EMS Panel
     if (!isDemoMode) {
       widgets.push({
         id: 'ems-panel',
         title: 'EMS Optimization',
-        defaultLayout: { x: 0, y: 31, w: 12, h: 10, minH: 6, minW: 4 },
+        defaultLayout: { x: 0, y: 17, w: 12, h: 14, minH: 8, minW: 4 },
         component: (
           <ErrorBoundary>
             <EMSPanel siteId={siteId} />

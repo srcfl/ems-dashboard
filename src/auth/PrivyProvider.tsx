@@ -1,6 +1,6 @@
 import { PrivyProvider as PrivyProviderBase } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
 const solanaConnectors = toSolanaWalletConnectors({
   shouldAutoConnect: true,
@@ -53,17 +53,8 @@ export function PrivyProvider({ children }: Props) {
 
   const appId = getAppId(env);
 
-  useEffect(() => {
-    console.log('🔧 Privy Config:', {
-      env,
-      appId: appId ? `${appId.slice(0, 8)}...` : 'MISSING!',
-      origin: window.location.origin,
-    });
-  }, [env, appId]);
-
   const switchEnv = (newEnv: EnvType) => {
     if (newEnv !== env) {
-      console.log(`🔄 Switching Privy env from ${env} to ${newEnv}`);
       sessionStorage.setItem('privy_env', newEnv);
       // Reload to reinitialize Privy with new app ID
       window.location.reload();

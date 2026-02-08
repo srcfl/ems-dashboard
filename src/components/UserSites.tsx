@@ -11,17 +11,25 @@ import type { SiteInfo } from '../api/sourceful-client';
 const USER_NAMES_KEY = 'site_names_user';
 const API_NAMES_KEY = 'site_names_api';
 
+function safeParse(key: string): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(key) || '{}');
+  } catch {
+    return {};
+  }
+}
+
 function getSiteName(siteId: string): string | null {
   // First check user-customized names
-  const userNames = JSON.parse(localStorage.getItem(USER_NAMES_KEY) || '{}');
+  const userNames = safeParse(USER_NAMES_KEY);
   if (userNames[siteId]) return userNames[siteId];
   // Fall back to API-provided names
-  const apiNames = JSON.parse(localStorage.getItem(API_NAMES_KEY) || '{}');
+  const apiNames = safeParse(API_NAMES_KEY);
   return apiNames[siteId] || null;
 }
 
 function setSiteName(siteId: string, name: string) {
-  const names = JSON.parse(localStorage.getItem(USER_NAMES_KEY) || '{}');
+  const names = safeParse(USER_NAMES_KEY);
   names[siteId] = name;
   localStorage.setItem(USER_NAMES_KEY, JSON.stringify(names));
 }
@@ -44,7 +52,7 @@ interface UserSitesProps {
 export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
   const { authenticated } = usePrivy();
   const { wallets } = useWallets();
-  const { credentials, isReady, isGeneratingCredentials, credentialError, generateCredentials, needsCredentials } = useDataContext();
+  const { credentials, isGeneratingCredentials, credentialError, generateCredentials, needsCredentials } = useDataContext();
   const [sites, setSites] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,31 +60,13 @@ export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
   // Get the first wallet (embedded or external)
   const walletAddress = wallets?.[0]?.address;
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🔍 UserSites Debug:', {
-      authenticated,
-      walletsCount: wallets?.length || 0,
-      walletAddresses: wallets?.map(w => w.address),
-      walletAddress,
-      hasCredentials: !!credentials,
-      isReady,
-    });
-  }, [authenticated, wallets, walletAddress, credentials, isReady]);
-
   useEffect(() => {
     if (!authenticated || !walletAddress) {
       setSites([]);
       return;
     }
 
-    // Wait for credentials
-    if (!credentials) {
-      console.log('⏳ Waiting for API credentials...');
-      return;
-    }
-
-    console.log('📡 Fetching sites for wallet:', walletAddress);
+    if (!credentials) return;
 
     setLoading(true);
     setError(null);
@@ -114,23 +104,26 @@ export function UserSites({ onSelectSite, selectedSite }: UserSitesProps) {
     );
   }
 
-  // Show connect button - part of the natural login flow
+  // Credentials are auto-generated - show error with retry if it failed
   if (needsCredentials) {
     return (
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 text-center">
-        <h3 className="text-lg font-medium text-white mb-2">Connect to Energy API</h3>
-        <p className="text-gray-400 text-sm mb-4">
-          Sign once to access your energy data. Valid for 1 year.
-        </p>
-        {credentialError && (
-          <p className="text-red-400 text-sm mb-3">{credentialError}</p>
+        {credentialError ? (
+          <>
+            <p className="text-red-400 text-sm mb-3">{credentialError}</p>
+            <button
+              onClick={() => generateCredentials()}
+              className="px-6 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500 transition-colors font-medium"
+            >
+              Retry Sign
+            </button>
+          </>
+        ) : (
+          <div className="flex items-center justify-center gap-2 text-gray-400">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Connecting...</span>
+          </div>
         )}
-        <button
-          onClick={() => generateCredentials()}
-          className="px-6 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500 transition-colors font-medium"
-        >
-          Connect & Sign
-        </button>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallets, useSignMessage } from '@privy-io/react-auth/solana';
 import {
@@ -19,23 +19,39 @@ export function useSourcefulAuth() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Try to load cached credentials on mount
-  useEffect(() => {
-    if (authenticated && wallets.length > 0) {
-      const cached = getCachedCredentials();
-      if (cached && cached.walletAddress === wallets[0].address) {
-        setCredentials(cached);
-      }
-    }
-  }, [authenticated, wallets]);
+  // Ref guard to prevent double-firing of auto-generation
+  const autoGenerateAttempted = useRef(false);
 
-  // Clear credentials on logout
+  // Load cached credentials on mount, or auto-generate if none exist
   useEffect(() => {
-    if (!authenticated) {
-      setCredentials(null);
-      clearCredentials();
+    if (!authenticated || wallets.length === 0) {
+      if (!authenticated) {
+        setCredentials(null);
+        clearCredentials();
+      }
+      // Reset guard when logged out so re-login triggers generation
+      autoGenerateAttempted.current = false;
+      return;
     }
-  }, [authenticated]);
+
+    const wallet = wallets[0];
+
+    // Clear stale credentials from a different wallet
+    const cached = getCachedCredentials();
+    if (cached && cached.walletAddress !== wallet.address) {
+      clearCredentials();
+      setCredentials(null);
+    } else if (cached && cached.walletAddress === wallet.address) {
+      setCredentials(cached);
+      return;
+    }
+
+    // No valid cached credentials - auto-trigger signing (once)
+    if (!autoGenerateAttempted.current) {
+      autoGenerateAttempted.current = true;
+      generateCredentials();
+    }
+  }, [authenticated, wallets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const generateCredentials = useCallback(async (): Promise<AuthCredentials | null> => {
     if (!ready) {
@@ -66,8 +82,6 @@ export function useSourcefulAuth() {
     setError(null);
 
     try {
-      console.log('🔐 Generating Sourceful credentials for wallet:', wallet.address);
-
       // Create message with 1 year expiration
       const issuedAt = new Date();
       const expirationTime = new Date();
@@ -78,8 +92,6 @@ export function useSourcefulAuth() {
         issuedAt,
         expirationTime
       );
-
-      console.log('🔐 Requesting signature for message...');
 
       // Sign the message with timeout to prevent infinite loading
       const messageBytes = new TextEncoder().encode(plainTextMessage);
@@ -95,8 +107,6 @@ export function useSourcefulAuth() {
       });
 
       const signatureResult = await Promise.race([signaturePromise, timeoutPromise]);
-
-      console.log('🔐 Signature received:', signatureResult);
 
       // Extract signature bytes - handle different response formats
       let signatureBytes: Uint8Array;
@@ -125,11 +135,8 @@ export function useSourcefulAuth() {
       cacheCredentials(newCredentials);
       setCredentials(newCredentials);
       setIsGenerating(false);
-
-      console.log('🔐 Sourceful credentials generated successfully');
       return newCredentials;
     } catch (err) {
-      console.error('🔐 Failed to generate credentials:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate credentials';
       setError(errorMessage);
       setIsGenerating(false);
@@ -141,6 +148,7 @@ export function useSourcefulAuth() {
     setCredentials(null);
     clearCredentials();
     setError(null);
+    autoGenerateAttempted.current = false;
   }, []);
 
   return {

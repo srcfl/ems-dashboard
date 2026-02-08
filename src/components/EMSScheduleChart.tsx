@@ -10,8 +10,8 @@ import {
   ReferenceLine,
   ReferenceArea,
 } from 'recharts';
-import type { EMSParsedSchedule, EMSMode } from '../api/ems-types';
-import { getModeInfo } from '../api/ems-client';
+import type { EMSParsedSchedule, EMSMode } from '../api/ems-manager-types';
+import { getModeInfo } from '../api/ems-manager-client';
 
 interface EMSScheduleChartProps {
   schedule: EMSParsedSchedule | null;
@@ -22,24 +22,24 @@ interface ChartDataPoint {
   timestamp: Date;
   timeLabel: string;
   mode: EMSMode;
-  price: number;
-  priceOre: number;
+  importPrice: number;
+  exportPrice: number;
+  importPriceOre: number;
+  exportPriceOre: number;
   batterySoc: number | null;
   evSoc: number | null;
   batteryPower: number | null;
-  evPower: number | null;
   loadForecast: number;
   productionForecast: number;
   isCurrent: boolean;
   slotIndex: number;
 }
 
-// Sourceful Design System mode colors
 const MODE_COLORS: Record<EMSMode, { bg: string; border: string }> = {
   IDLE: { bg: 'rgba(148, 163, 184, 0.15)', border: '#94a3b8' },
-  SELF_CONSUMPTION: { bg: 'rgba(0, 255, 132, 0.15)', border: '#00FF84' },    // Sourceful green
-  FORCE_CHARGE: { bg: 'rgba(66, 165, 245, 0.2)', border: '#42A5F5' },        // Sourceful blue
-  FORCE_DISCHARGE: { bg: 'rgba(255, 133, 51, 0.2)', border: '#FF8533' },     // Sourceful orange
+  SELF_CONSUMPTION: { bg: 'rgba(0, 255, 132, 0.15)', border: '#00FF84' },
+  FORCE_CHARGE: { bg: 'rgba(66, 165, 245, 0.2)', border: '#42A5F5' },
+  FORCE_DISCHARGE: { bg: 'rgba(255, 133, 51, 0.2)', border: '#FF8533' },
 };
 
 export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
@@ -52,11 +52,9 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
       const slotEnd = new Date(slot.timestamp.getTime() + schedule.slotDuration * 1000);
       const isCurrent = now >= slot.timestamp && now < slotEnd;
 
-      // Find battery and EV DERs
       let batterySoc: number | null = null;
       let evSoc: number | null = null;
       let batteryPower: number | null = null;
-      let evPower: number | null = null;
 
       for (const [derId, derData] of Object.entries(slot.ders)) {
         if (derId.startsWith('bt-')) {
@@ -64,7 +62,6 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
           batteryPower = derData.power;
         } else if (derId.startsWith('v2x-')) {
           evSoc = derData.soc;
-          evPower = derData.power;
         }
       }
 
@@ -72,24 +69,23 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
         timestamp: slot.timestamp,
         timeLabel: slot.timestamp.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }),
         mode: slot.mode,
-        price: slot.price,
-        priceOre: slot.price * 100,
+        importPrice: slot.importPrice,
+        exportPrice: slot.exportPrice,
+        importPriceOre: slot.importPrice * 100,
+        exportPriceOre: slot.exportPrice * 100,
         batterySoc,
         evSoc,
         batteryPower,
-        evPower,
         loadForecast: slot.loadForecast,
-        productionForecast: Math.abs(slot.productionForecast), // Make positive for display
+        productionForecast: Math.abs(slot.productionForecast),
         isCurrent,
         slotIndex: slot.slotIndex,
       };
     });
   }, [schedule]);
 
-  // Find current slot index and group consecutive modes for shading
   const currentSlotIndex = chartData.findIndex(d => d.isCurrent);
 
-  // Group consecutive slots by mode for background shading
   const modeRegions = useMemo(() => {
     if (chartData.length === 0) return [];
 
@@ -112,8 +108,8 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
   if (loading) {
     return (
       <div className="bg-gray-800 rounded-xl p-6 animate-pulse">
-        <div className="h-6 bg-gray-700 rounded w-1/4 mb-4"></div>
-        <div className="h-80 bg-gray-700 rounded"></div>
+        <div className="h-6 bg-gray-700 rounded w-1/4 mb-4" />
+        <div className="h-80 bg-gray-700 rounded" />
       </div>
     );
   }
@@ -134,7 +130,7 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
     const modeInfo = getModeInfo(data.mode);
 
     return (
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 shadow-xl min-w-[220px]">
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 shadow-xl min-w-[240px]">
         <div className="flex items-center justify-between mb-3">
           <p className="text-white font-bold text-lg">{data.timeLabel}</p>
           {data.isCurrent && (
@@ -152,41 +148,37 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
         </div>
 
         <div className="space-y-2 text-sm">
-          {/* Price */}
+          {/* Prices */}
           <div className="flex justify-between">
-            <span className="text-gray-400">Price</span>
-            <span className="text-amber-400 font-medium">{(data.priceOre ?? 0).toFixed(1)} öre/kWh</span>
+            <span className="text-gray-400">Import</span>
+            <span className="text-amber-400 font-medium">{data.importPriceOre.toFixed(1)} öre/kWh</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Export</span>
+            <span className="text-emerald-400 font-medium">{data.exportPriceOre.toFixed(1)} öre/kWh</span>
           </div>
 
-          {/* Load Forecast */}
-          {(data.loadForecast ?? 0) > 0 && (
+          {/* Load */}
+          {data.loadForecast > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-400">Expected Load</span>
-              <span className="text-red-400 font-medium">{((data.loadForecast ?? 0) / 1000).toFixed(2)} kW</span>
+              <span className="text-gray-400">Load</span>
+              <span className="text-gray-300 font-medium">{(data.loadForecast / 1000).toFixed(1)} kW</span>
             </div>
           )}
 
-          {/* Production Forecast */}
-          {(data.productionForecast ?? 0) > 0 && (
+          {/* Production */}
+          {data.productionForecast > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-400">Expected Solar</span>
-              <span className="text-yellow-400 font-medium">{((data.productionForecast ?? 0) / 1000).toFixed(2)} kW</span>
+              <span className="text-gray-400">Solar</span>
+              <span className="text-yellow-400 font-medium">{(data.productionForecast / 1000).toFixed(1)} kW</span>
             </div>
           )}
 
           {/* Battery SoC */}
           {data.batterySoc != null && (
             <div className="flex justify-between">
-              <span className="text-gray-400">Battery SoC</span>
-              <span className="text-orange-400 font-bold">{data.batterySoc.toFixed(0)}%</span>
-            </div>
-          )}
-
-          {/* EV SoC */}
-          {data.evSoc != null && (
-            <div className="flex justify-between">
-              <span className="text-gray-400">EV SoC</span>
-              <span className="text-cyan-400 font-bold">{data.evSoc.toFixed(0)}%</span>
+              <span className="text-gray-400">Battery</span>
+              <span className="text-green-400 font-bold">{data.batterySoc.toFixed(0)}%</span>
             </div>
           )}
 
@@ -194,14 +186,21 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
           {data.batteryPower != null && data.batteryPower !== 0 && (
             <div className="flex justify-between">
               <span className="text-gray-400">Battery Power</span>
-              <span className={`font-medium ${data.batteryPower > 0 ? 'text-green-400' : 'text-orange-400'}`}>
-                {data.batteryPower > 0 ? '+' : ''}{(data.batteryPower / 1000).toFixed(2)} kW
+              <span className={`font-medium ${data.batteryPower > 0 ? 'text-blue-400' : 'text-orange-400'}`}>
+                {data.batteryPower > 0 ? '+' : ''}{(data.batteryPower / 1000).toFixed(1)} kW
               </span>
+            </div>
+          )}
+
+          {/* EV SoC */}
+          {data.evSoc != null && (
+            <div className="flex justify-between">
+              <span className="text-gray-400">EV</span>
+              <span className="text-cyan-400 font-bold">{data.evSoc.toFixed(0)}%</span>
             </div>
           )}
         </div>
 
-        {/* Explanation */}
         <div className="mt-3 pt-3 border-t border-gray-700">
           <p className="text-gray-500 text-xs italic">{modeInfo.description}</p>
         </div>
@@ -209,28 +208,29 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
     );
   };
 
-  // Calculate Y-axis domains
-  const maxPrice = Math.max(...chartData.map(d => d.priceOre));
-  const minPrice = Math.min(...chartData.map(d => d.priceOre));
-  const pricePadding = (maxPrice - minPrice) * 0.15;
+  const maxPrice = Math.max(...chartData.map(d => d.importPriceOre));
+  const minPrice = Math.min(...chartData.map(d => d.importPriceOre));
+  const pricePadding = Math.max((maxPrice - minPrice) * 0.15, 2);
 
-  // Current time label
   const currentTimeLabel = currentSlotIndex >= 0 ? chartData[currentSlotIndex].timeLabel : null;
+
+  // Check if there's any production forecast data
+  const hasProduction = chartData.some(d => d.productionForecast > 0);
+  const hasLoad = chartData.some(d => d.loadForecast > 0);
 
   return (
     <div className="bg-gray-800 rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-white font-medium">24h Optimization Schedule</h3>
-          <p className="text-gray-500 text-xs mt-1">Shows how the optimizer plans to manage your energy</p>
+          <p className="text-gray-500 text-xs mt-1">
+            Generated {schedule.generatedAt.toLocaleTimeString('sv-SE')}
+          </p>
         </div>
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-4 text-xs flex-wrap">
           {Object.entries(MODE_COLORS).map(([mode, colors]) => (
             <div key={mode} className="flex items-center gap-1.5">
-              <div
-                className="w-3 h-3 rounded"
-                style={{ backgroundColor: colors.border }}
-              />
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: colors.border }} />
               <span className="text-gray-400">{getModeInfo(mode as EMSMode).label}</span>
             </div>
           ))}
@@ -301,7 +301,7 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
             />
             <Tooltip content={<CustomTooltip />} />
 
-            {/* Current time indicator - prominent vertical band */}
+            {/* Current time indicator */}
             {currentTimeLabel && (
               <>
                 <ReferenceLine
@@ -320,29 +320,56 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
               </>
             )}
 
-            {/* Load forecast area (subtle) */}
-            <Area
-              yAxisId="price"
-              type="monotone"
-              dataKey={(d: ChartDataPoint) => d.loadForecast > 0 ? (d.loadForecast / 1000) * 5 + minPrice : null}
-              stroke="none"
-              fill="#94a3b8"
-              fillOpacity={0.1}
-              connectNulls
-            />
+            {/* Load forecast area */}
+            {hasLoad && (
+              <Area
+                yAxisId="price"
+                type="monotone"
+                dataKey={(d: ChartDataPoint) => d.loadForecast > 0 ? (d.loadForecast / 1000) * 5 + minPrice : null}
+                stroke="none"
+                fill="#94a3b8"
+                fillOpacity={0.1}
+                connectNulls
+              />
+            )}
 
-            {/* Price line - Sourceful yellow */}
+            {/* Production forecast area */}
+            {hasProduction && (
+              <Area
+                yAxisId="price"
+                type="monotone"
+                dataKey={(d: ChartDataPoint) => d.productionForecast > 0 ? (d.productionForecast / 1000) * 5 + minPrice : null}
+                stroke="none"
+                fill="#FFD500"
+                fillOpacity={0.1}
+                connectNulls
+              />
+            )}
+
+            {/* Import price line */}
             <Line
               yAxisId="price"
               type="stepAfter"
-              dataKey="priceOre"
+              dataKey="importPriceOre"
               stroke="#FFD500"
               strokeWidth={2}
               dot={false}
-              name="Price"
+              name="Import Price"
             />
 
-            {/* Battery SoC - Sourceful green */}
+            {/* Export price line */}
+            <Line
+              yAxisId="price"
+              type="stepAfter"
+              dataKey="exportPriceOre"
+              stroke="#10B981"
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
+              dot={false}
+              name="Export Price"
+            />
+
+            {/* Battery SoC */}
             <Line
               yAxisId="soc"
               type="monotone"
@@ -354,7 +381,7 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
               connectNulls
             />
 
-            {/* EV SoC - Sourceful teal */}
+            {/* EV SoC */}
             <Line
               yAxisId="soc"
               type="monotone"
@@ -369,11 +396,15 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* Legend - Sourceful Design System colors */}
-      <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-gray-700 text-xs">
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-gray-700 text-xs flex-wrap">
         <div className="flex items-center gap-2">
           <div className="w-5 h-0.5 bg-[#FFD500]" />
-          <span className="text-gray-400">Electricity Price</span>
+          <span className="text-gray-400">Import Price</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-0.5 bg-[#10B981] border-dashed" style={{ borderTop: '1.5px dashed #10B981', height: 0 }} />
+          <span className="text-gray-400">Export Price</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-5 h-1 bg-[#00FF84] rounded" />
@@ -385,7 +416,7 @@ export function EMSScheduleChart({ schedule, loading }: EMSScheduleChartProps) {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-[#00FF84] rounded-full" />
-          <span className="text-gray-400">Current Time</span>
+          <span className="text-gray-400">Now</span>
         </div>
       </div>
     </div>
