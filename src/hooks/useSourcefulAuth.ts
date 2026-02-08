@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallets, useSignMessage } from '@privy-io/react-auth/solana';
 import {
@@ -11,17 +11,8 @@ import {
   type AuthCredentials,
 } from '../api/sourceful-auth';
 
-// Prefer the Privy embedded wallet (signs silently, no popup)
-// Fall back to first available wallet if no embedded wallet found
-function getPreferredWallet(wallets: ReturnType<typeof useWallets>['wallets']) {
-  // PrivyStandardWallet exposes isPrivyWallet on the standardWallet object
-  return wallets.find(w =>
-    (w.standardWallet as { isPrivyWallet?: boolean }).isPrivyWallet
-  ) || wallets[0];
-}
-
 export function useSourcefulAuth() {
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
   const { signMessage } = useSignMessage();
   const [credentials, setCredentials] = useState<AuthCredentials | null>(null);
@@ -30,6 +21,24 @@ export function useSourcefulAuth() {
 
   // Ref guard to prevent double-firing of auto-generation
   const autoGenerateAttempted = useRef(false);
+
+  // Find embedded wallet address from Privy user's linked accounts
+  // Embedded wallets sign silently (no popup), external wallets (Phantom) show popups
+  const embeddedWalletAddress = useMemo(() => {
+    const linked = user?.linkedAccounts?.find(
+      (a) => a.type === 'wallet' && a.walletClientType === 'privy',
+    );
+    return linked && 'address' in linked ? linked.address : null;
+  }, [user?.linkedAccounts]);
+
+  // Prefer the Privy embedded wallet, fall back to first available
+  const getPreferredWallet = useCallback(() => {
+    if (embeddedWalletAddress) {
+      const embedded = wallets.find((w) => w.address === embeddedWalletAddress);
+      if (embedded) return embedded;
+    }
+    return wallets[0];
+  }, [wallets, embeddedWalletAddress]);
 
   // Load cached credentials on mount, or auto-generate if none exist
   useEffect(() => {
@@ -43,7 +52,7 @@ export function useSourcefulAuth() {
       return;
     }
 
-    const wallet = getPreferredWallet(wallets);
+    const wallet = getPreferredWallet();
 
     // Clear stale credentials from a different wallet
     const cached = getCachedCredentials();
@@ -73,7 +82,7 @@ export function useSourcefulAuth() {
       return null;
     }
 
-    const wallet = getPreferredWallet(wallets);
+    const wallet = getPreferredWallet();
     if (!wallet.address) {
       setError('Wallet not connected. Please try logging out and back in.');
       return null;
@@ -150,7 +159,7 @@ export function useSourcefulAuth() {
       setIsGenerating(false);
       return null;
     }
-  }, [ready, wallets, signMessage]);
+  }, [ready, wallets, signMessage, getPreferredWallet]);
 
   const clearAuth = useCallback(() => {
     setCredentials(null);
