@@ -3,7 +3,7 @@ import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
 const solanaConnectors = toSolanaWalletConnectors({
-  shouldAutoConnect: true,
+  shouldAutoConnect: false,
 });
 
 type EnvType = 'production' | 'development';
