@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
-import { useWallets, useSignMessage } from '@privy-io/react-auth/solana';
+import { useWallets, useSignMessage, useCreateWallet } from '@privy-io/react-auth/solana';
 import {
   generateAuthMessage,
   base58Encode,
@@ -15,23 +15,40 @@ export function useSourcefulAuth() {
   const { ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
   const { signMessage } = useSignMessage();
+  const { createWallet } = useCreateWallet();
   const [credentials, setCredentials] = useState<AuthCredentials | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Ref guard to prevent double-firing of auto-generation
+  // Ref guards
   const autoGenerateAttempted = useRef(false);
+  const walletCreationAttempted = useRef(false);
 
   // Find embedded wallet address from Privy user's linked accounts
-  // Embedded wallets sign silently (no popup), external wallets (Phantom) show popups
   const embeddedWalletAddress = useMemo(() => {
     const linked = user?.linkedAccounts?.find(
-      (a) => a.type === 'wallet' && a.walletClientType === 'privy',
+      (a) => a.type === 'wallet' && (a.walletClientType === 'privy' || a.walletClientType === 'privy-v2'),
     );
     return linked && 'address' in linked ? linked.address : null;
   }, [user?.linkedAccounts]);
 
-  // Prefer the Privy embedded wallet, fall back to first available
+  // Create embedded wallet if user doesn't have one
+  useEffect(() => {
+    if (!authenticated || !user || !ready) return;
+    if (embeddedWalletAddress) return; // already has one
+    if (walletCreationAttempted.current) return;
+
+    walletCreationAttempted.current = true;
+    console.log('[AUTH] No embedded wallet found, creating one...');
+    createWallet().then(({ wallet }) => {
+      console.log('[AUTH] Embedded wallet created:', wallet.address);
+    }).catch((err) => {
+      // "already exists" is fine — means it exists but wasn't in linkedAccounts yet
+      console.log('[AUTH] createWallet result:', err?.message || err);
+    });
+  }, [authenticated, user, ready, embeddedWalletAddress, createWallet]);
+
+  // Get the embedded wallet from the wallets array, falling back to first available
   const getPreferredWallet = useCallback(() => {
     if (embeddedWalletAddress) {
       const embedded = wallets.find((w) => w.address === embeddedWalletAddress);
@@ -47,13 +64,11 @@ export function useSourcefulAuth() {
         setCredentials(null);
         clearCredentials();
       }
-      // Reset guard when logged out so re-login triggers generation
       autoGenerateAttempted.current = false;
       return;
     }
 
-    // Check if cached credentials belong to ANY connected wallet (not just preferred)
-    // This prevents race conditions where user object loads after wallets
+    // Accept cached credentials if they match ANY connected wallet
     const cached = getCachedCredentials();
     if (cached) {
       const cachedWalletConnected = wallets.some((w) => w.address === cached.walletAddress);
@@ -61,20 +76,28 @@ export function useSourcefulAuth() {
         setCredentials(cached);
         return;
       }
-      // Cached wallet not in connected wallets — stale, clear it
+      // Also accept if cached wallet matches the embedded wallet (might not be in wallets array yet)
+      if (embeddedWalletAddress && cached.walletAddress === embeddedWalletAddress) {
+        setCredentials(cached);
+        return;
+      }
       clearCredentials();
       setCredentials(null);
     }
 
-    // Wait for user object before generating — we need it to find the embedded wallet
+    // Wait for user object and embedded wallet before generating
     if (!user) return;
+    if (!embeddedWalletAddress) return; // wait for embedded wallet to be created
 
-    // No valid cached credentials - auto-trigger signing (once)
+    // Only generate once the embedded wallet is available in the wallets array
+    const embeddedInWallets = wallets.some((w) => w.address === embeddedWalletAddress);
+    if (!embeddedInWallets) return; // wait for it to appear
+
     if (!autoGenerateAttempted.current) {
       autoGenerateAttempted.current = true;
       generateCredentials();
     }
-  }, [authenticated, wallets, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authenticated, wallets, user, embeddedWalletAddress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const generateCredentials = useCallback(async (): Promise<AuthCredentials | null> => {
     if (!ready) {
@@ -88,23 +111,23 @@ export function useSourcefulAuth() {
     }
 
     const wallet = getPreferredWallet();
-    if (!wallet.address) {
+    if (!wallet?.address) {
       setError('Wallet not connected. Please try logging out and back in.');
       return null;
     }
 
-    // Check for cached credentials — accept if they match ANY connected wallet
+    // Accept cached credentials matching any connected wallet
     const cached = getCachedCredentials();
     if (cached && wallets.some((w) => w.address === cached.walletAddress)) {
       setCredentials(cached);
       return cached;
     }
 
+    console.log('[AUTH] Signing with wallet:', wallet.address, '(embedded:', wallet.address === embeddedWalletAddress, ')');
     setIsGenerating(true);
     setError(null);
 
     try {
-      // Create message with 1 year expiration
       const issuedAt = new Date();
       const expirationTime = new Date();
       expirationTime.setFullYear(expirationTime.getFullYear() + 1);
@@ -115,7 +138,6 @@ export function useSourcefulAuth() {
         expirationTime
       );
 
-      // Sign the message with timeout to prevent infinite loading
       const messageBytes = new TextEncoder().encode(plainTextMessage);
 
       const signaturePromise = signMessage({
@@ -123,14 +145,12 @@ export function useSourcefulAuth() {
         wallet: wallet,
       });
 
-      // Add 30 second timeout
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Signing timed out. Please try again.')), 30000);
       });
 
       const signatureResult = await Promise.race([signaturePromise, timeoutPromise]);
 
-      // Extract signature bytes - handle different response formats
       let signatureBytes: Uint8Array;
       const result = signatureResult as unknown;
       if (result && typeof result === 'object' && 'signature' in result) {
@@ -141,7 +161,6 @@ export function useSourcefulAuth() {
         throw new Error('Unexpected signature format');
       }
 
-      // Encode to base58
       const base58Message = base58Encode(plainTextMessage);
       const base58Signature = base58EncodeSignature(signatureBytes);
 
@@ -153,7 +172,6 @@ export function useSourcefulAuth() {
         expiresAt: expirationTime.toISOString(),
       };
 
-      // Cache and set credentials
       cacheCredentials(newCredentials);
       setCredentials(newCredentials);
       setIsGenerating(false);
@@ -164,13 +182,14 @@ export function useSourcefulAuth() {
       setIsGenerating(false);
       return null;
     }
-  }, [ready, wallets, signMessage, getPreferredWallet]);
+  }, [ready, wallets, signMessage, getPreferredWallet, embeddedWalletAddress]);
 
   const clearAuth = useCallback(() => {
     setCredentials(null);
     clearCredentials();
     setError(null);
     autoGenerateAttempted.current = false;
+    walletCreationAttempted.current = false;
   }, []);
 
   return {
